@@ -170,7 +170,7 @@ def save_comments_to_db(database_path, comments, channel_name):
             asyncio.run(
                 send_message_to_thread(
                     message=telegram_message,
-                    topic_id=config.topic_id,
+                    thread_id=config.thread_id,
                     parse_mode='MarkdownV2',
                     main_logger=logger
                 )

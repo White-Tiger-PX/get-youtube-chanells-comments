@@ -29,13 +29,13 @@ user_id = "your_user_id_here"  # Замените на ваш уникальны
 # Идентификатор чата Telegram, может совпадать с user_id для групп без подтем
 chat_id = "your_chat_id_here"  # Замените на ваш уникальный идентификатор чата
 
-topic_id = 0 # Замените на нужный id темы
+thread_id = 0 # Замените на нужный id темы
 
 # Токен для Telegram бота (замените на свой)
 telegram_bot_token = "your_telegram_bot_token_here"
 
-# Чтобы получить user_id и chat_id для вашего Telegram чата,
-# используйте скрипт telegram_user_info.py
+# Чтобы получить user_id и chat_id, thread_id для вашего Telegram чата,
+# используйте скрипт get_telegram_message_info.py
 
 # Список каналов для работы с YouTube API
 channels = [

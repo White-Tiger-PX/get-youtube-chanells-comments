@@ -5,7 +5,7 @@ import config
 
 async def send_message_to_thread(
     message,
-    topic_id,
+    thread_id,
     main_logger,
     pin_message=False,
     mention_user=False,
@@ -25,7 +25,7 @@ async def send_message_to_thread(
         sent_message = await bot.send_message(
             chat_id=chat_id,
             text=message,
-            message_thread_id=topic_id,
+            message_thread_id=thread_id,
             parse_mode=parse_mode
         )
 
