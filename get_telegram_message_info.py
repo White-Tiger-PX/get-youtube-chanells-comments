@@ -13,10 +13,13 @@ async def start(update: Update, context):
     chat_id = update.effective_chat.id  # Получаем chat_id
     user_id = update.effective_user.id  # Получаем user_id
     message_text = update.message.text  # Получаем текст сообщения от пользователя
+    thread_id = getattr(update.message, 'message_thread_id', None) # Получаем thread_id, если есть
 
-    await update.message.reply_text(f"You chat_id: {chat_id}\You user_id: {user_id}")
+    await update.message.reply_text(
+        f"chat_id: {chat_id}\nuser_id: {user_id}" + (f"\nthread_id: {thread_id}" if thread_id is not None else "")
+    )
 
-    print(f"Chat ID: {chat_id} | User ID: {user_id} | Message: {message_text}")
+    print(f"Chat ID: {chat_id} | User ID: {user_id}{' | Thread ID: ' + str(thread_id) if thread_id is not None else ''} | Message: {message_text}")
 
 
 def main():
