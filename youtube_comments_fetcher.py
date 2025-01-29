@@ -8,10 +8,11 @@ from googleapiclient.discovery import build
 import config
 
 from set_logger import set_logger
+from init_database import init_database
 from get_video_comments import get_video_comments
-from telegram_notification import send_message_to_thread, send_message_to_chat
 from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
+from telegram_notification import send_message_to_thread, send_message_to_chat
 
 
 def get_created_at_local(created_at):
@@ -65,117 +66,168 @@ def get_youtube_service(credentials):
     return build('youtube', 'v3', credentials=credentials)
 
 
+def send_new_comments_to_telegram(new_comments, channel_name):
+    for new_comment in new_comments:
+        try:
+            video_id = new_comment['youtube_video_id']
+            author = new_comment['author']
+            text = new_comment['text']
+            publish_date = new_comment['publish_date']
+            updated_date = new_comment['updated_date']
+            reply_to = new_comment['reply_to']
+
+            formatted_date = format_created_at_from_iso(publish_date, '%Y-%m-%d %H:%M:%S')
+
+            video_url = f"https://www.com/watch?v={video_id}"
+            channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+
+            is_updated = updated_date and updated_date != publish_date
+            quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
+
+            if is_updated:
+                quoted_text += "\n\n_\\(Комментарий изменён\\)_"
+
+            reply_note = ""
+
+            if reply_to:
+                try:
+                    conn = sqlite3.connect(config.database_path)
+                    cursor = conn.cursor()
+
+                    cursor.execute('''
+                        SELECT text
+                        FROM comments
+                        WHERE comment_id = ?
+                    ''', (reply_to,))
+
+                    reply_text_row = cursor.fetchone()
+                    conn.close()
+
+                    reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
+
+                    reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
+                    reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
+                except Exception as db_err:
+                    logger.error(f"Ошибка при получении текста родительского комментария: {db_err}")
+                    reply_note = "\n\nОтвет на: _Ошибка при загрузке комментария_"
+
+            telegram_message = (
+                f"{channel_name_with_url}\n\n"
+                f"*Автор:* {escape_markdown(author)}\n\n"
+                f"{quoted_text}\n\n"
+                f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
+            )
+
+            try:
+                if config.user_id == config.chat_id:
+                    asyncio.run(
+                        send_message_to_chat(
+                            message=telegram_message,
+                            parse_mode='MarkdownV2',
+                            main_logger=logger
+                        )
+                    )
+                else:
+                    asyncio.run(
+                        send_message_to_thread(
+                            message=telegram_message,
+                            thread_id=config.thread_id,
+                            parse_mode='MarkdownV2',
+                            main_logger=logger
+                        )
+                    )
+
+                time.sleep(5)
+
+            except Exception as telegram_err:
+                logger.error(f"Ошибка при отправке сообщения в Telegram: {telegram_err}")
+
+        except KeyError as key_err:
+            logger.error(f"Ошибка: отсутствует ключ в данных комментария: {key_err}")
+
+        except Exception as e:
+            logger.error(f"Ошибка обработки комментария: {e}")
+
+
 def save_comments_to_db(database_path, comments, channel_name):
     if not comments:
-        return
-
-    conn = sqlite3.connect(database_path)
-    cursor = conn.cursor()
-
-    insert_query = '''
-        INSERT INTO comments (
-            youtube_video_id,
-            channel_name,
-            text,
-            author,
-            publish_date,
-            updated_date,
-            reply_to,
-            comment_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    '''
-
-    select_query = '''
-        SELECT 1 FROM comments WHERE comment_id = ? AND text = ?
-    '''
-
-    reply_query = '''
-        SELECT text FROM comments WHERE comment_id = ?
-    '''
+        return []
 
     new_comments = []
 
-    for comment in comments:
-        video_id = comment['video_id']
-        author = comment['author']
-        text = comment['text']
-        publish_date = comment['publish_date']
-        updated_date = comment.get('updated_date')
-        reply_to = comment.get('reply_to')
-        comment_id = f"{video_id}_{author}_{publish_date}"
+    try:
+        conn = sqlite3.connect(database_path)
+        cursor = conn.cursor()
 
-        cursor.execute(select_query, (comment_id, text))
+        for comment in comments:
+            try:
+                video_id = comment['youtube_video_id']
+                channel_id = comment['channel_id']
+                comment_id = comment['comment_id']
+                author = comment['author']
+                author_channel_id = comment['author_channel_id']
+                text = comment['text']
+                publish_date = comment['publish_date']
+                updated_date = comment['updated_date']
+                reply_to = comment['reply_to']
 
-        if cursor.fetchone():
-            continue
+                # Проверяем, есть ли уже такой комментарий с такой датой обновления
+                cursor.execute('''
+                    SELECT 1
+                    FROM comments
+                    WHERE comment_id = ? AND updated_date = ?
+                ''', (comment_id, updated_date))
 
-        cursor.execute(insert_query, (video_id, channel_name, text, author, publish_date, updated_date, reply_to, comment_id))
-        new_comments.append((author, text, publish_date, updated_date, reply_to, comment_id))
+                if cursor.fetchone():  # Если комментарий уже есть, пропускаем
+                    continue
 
-    conn.commit()
-    conn.close()
+                if reply_to:
+                    logger.info(f"Новай запись с ответом на комментарий от {author}: {text}")
+                else:
+                    logger.info(f"Новая запись с комментарием от {author}: {text}")
 
-    if not new_comments:
-        return
+                cursor.execute('''
+                    INSERT INTO comments (
+                        youtube_video_id,
+                        channel_name,
+                        channel_id,
+                        comment_id,
+                        author,
+                        author_channel_id,
+                        text,
+                        publish_date,
+                        updated_date,
+                        reply_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    video_id,
+                    channel_name,
+                    channel_id,
+                    comment_id,
+                    author,
+                    author_channel_id,
+                    text,
+                    publish_date,
+                    updated_date,
+                    reply_to
+                ))
 
-    for author, text, publish_date, updated_date, reply_to, comment_id in new_comments:
-        formatted_date = format_created_at_from_iso(publish_date, '%Y-%m-%d %H:%M:%S')
+                new_comments.append(comment)
+            except KeyError as key_err:
+                logger.error(f"Ошибка: отсутствует ключ в данных комментария: {key_err}")
 
-        video_url = f"https://www.com/watch?v={video_id}"
-        channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+            except Exception as comment_err:
+                logger.error(f"Ошибка обработки комментария {comment_id}: {comment_err}")
 
-        logger.info(f"Новый комментарий от {author}: {text}")
+        conn.commit()
+    except sqlite3.Error as db_err:
+        logger.error(f"Ошибка базы данных: {db_err}")
+    except Exception as e:
+        logger.error(f"Ошибка в функции save_comments_to_db: {e}")
+    finally:
+        conn.close()
 
-        is_updated = updated_date and updated_date != publish_date
-        quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
-
-        if is_updated:
-            quoted_text += "\n\n_\\(Комментарий изменён\\)_"
-
-        if reply_to:
-            conn = sqlite3.connect(database_path)
-            cursor = conn.cursor()
-            cursor.execute(reply_query, (reply_to,))
-            reply_text_row = cursor.fetchone()
-            conn.close()
-
-            reply_text = (
-                escape_markdown(reply_text_row[0])
-                if reply_text_row
-                else "_Комментарий не найден_"
-            )
-
-            reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
-            reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
-        else:
-            reply_note = ""
-
-        telegram_message = (
-            f"{channel_name_with_url}\n\n"
-            f"*Автор:* {escape_markdown(author)}\n\n"
-            f"{quoted_text}\n\n"
-            f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
-        )
-
-        if config.user_id == config.chat_id:
-            asyncio.run(
-                send_message_to_chat(
-                    message=telegram_message,
-                    parse_mode='MarkdownV2',
-                    main_logger=logger
-                )
-            )
-        else:
-            asyncio.run(
-                send_message_to_thread(
-                    message=telegram_message,
-                    thread_id=config.thread_id,
-                    parse_mode='MarkdownV2',
-                    main_logger=logger
-                )
-            )
-        time.sleep(5)
+    return new_comments
 
 
 def get_user_name(youtube_service):
@@ -202,6 +254,7 @@ def get_channel_info(youtube_service):
         part="id,snippet,contentDetails,statistics",
         mine=True
     )
+
     response = request.execute()
 
     if response['items']:
@@ -211,16 +264,21 @@ def get_channel_info(youtube_service):
 
 
 def main():
+    logger.info("Программа для получения комментариев с каналов запущена!")
+
+    init_database(
+        database_path=config.database_path,
+        main_logger=logger
+    )
+
     for channel_data in config.chanells:
         try:
             token_path = channel_data["token_channel_path"]
             client_secret_path = channel_data["client_secret_path"]
 
-            # Получение учетных данных для канала
             credentials = get_channel_credentials(
                 client_secret_path=client_secret_path,
                 token_path=token_path,
-                user_name=None,  # user_name будет получен позже
                 timeout=300,
                 main_logger=logger
             )
@@ -239,8 +297,11 @@ def main():
             for i, video_id in enumerate(video_ids):
                 try:
                     print(f"Channel: {channel_name}, video: {video_id}...")
+
                     comments = get_video_comments(youtube_service, video_id, logger=logger)
-                    save_comments_to_db(config.database_path, comments, channel_name)
+                    new_comments = save_comments_to_db(config.database_path, comments, channel_name)
+
+                    send_new_comments_to_telegram(new_comments, channel_name)
                 except Exception as e:
                     logger.error(f"Ошибка при обновлении комментариев для видео {video_id} от {channel_name}: {e}")
 
