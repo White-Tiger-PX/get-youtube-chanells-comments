@@ -118,12 +118,15 @@ def send_new_comments_to_telegram(new_comments, channel_name):
                 f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
             )
 
+            need_mention_user = True if config.user_id is not None else False
+
             try:
                 if config.user_id == config.chat_id:
                     asyncio.run(
                         send_message_to_chat(
                             message=telegram_message,
                             parse_mode='MarkdownV2',
+                            mention_user=need_mention_user,
                             main_logger=logger
                         )
                     )
@@ -132,6 +135,7 @@ def send_new_comments_to_telegram(new_comments, channel_name):
                         send_message_to_thread(
                             message=telegram_message,
                             thread_id=config.thread_id,
+                            mention_user=need_mention_user,
                             parse_mode='MarkdownV2',
                             main_logger=logger
                         )
