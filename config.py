@@ -22,6 +22,9 @@ user_data_dir = ""
 profile_directory = "Profiles - "
 chrome_executable_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"
 
+# Отправлять ли комментарии в Telegram
+send_notification_on_telegram = False
+
 # Идентификатор пользователя для Telegram
 # Если у вас группа без подтем, то user_id будет совпадать с chat_id
 user_id = "your_user_id_here"  # Замените на ваш уникальный идентификатор пользователя

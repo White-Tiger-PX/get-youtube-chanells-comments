@@ -301,7 +301,8 @@ def main():
                     comments = get_video_comments(youtube_service, video_id, logger=logger)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
-                    send_new_comments_to_telegram(new_comments, channel_name)
+                    if config.send_notification_on_telegram:
+                        send_new_comments_to_telegram(new_comments, channel_name)
                 except Exception as e:
                     logger.error(f"Ошибка при обновлении комментариев для видео {video_id} от {channel_name}: {e}")
 
