@@ -9,6 +9,7 @@ def get_all_video_ids_from_channel(youtube_service, upload_playlist_id, logger):
 
     :param youtube_service: Авторизованный клиент YouTube API.
     :param upload_playlist_id: Идентификатор плейлиста.
+    :param logger: Логгер.
     :return: Список идентификаторов видео.
     """
     page_count = 0
