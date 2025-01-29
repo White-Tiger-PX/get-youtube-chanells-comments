@@ -10,16 +10,22 @@ import config
 
 
 async def start(update: Update, context):
-    chat_id = update.effective_chat.id  # Получаем chat_id
-    user_id = update.effective_user.id  # Получаем user_id
-    message_text = update.message.text  # Получаем текст сообщения от пользователя
-    thread_id = getattr(update.message, 'message_thread_id', None) # Получаем thread_id, если есть
+    chat_id = update.effective_chat.id
 
-    await update.message.reply_text(
-        f"chat_id: {chat_id}\nuser_id: {user_id}" + (f"\nthread_id: {thread_id}" if thread_id is not None else "")
-    )
+    # Проверка на тип источника сообщения
+    if update.effective_user: # Сообщение от пользователя в группе / боту
+        user_id = update.effective_user.id
+        message_text = update.message.text
 
-    print(f"Chat ID: {chat_id} | User ID: {user_id}{' | Thread ID: ' + str(thread_id) if thread_id is not None else ''} | Message: {message_text}")
+        thread_id = getattr(update.message, 'message_thread_id', None)
+
+        await update.message.reply_text(
+            f"chat_id: {chat_id}\nuser_id: {user_id}" + (f"\nthread_id: {thread_id}" if thread_id is not None else "")
+        )
+    else: # Сообщение от канала
+        message_text = update.channel_post.text
+
+        print(f"Chat ID: {chat_id} | Message: {message_text}")
 
 
 def main():
