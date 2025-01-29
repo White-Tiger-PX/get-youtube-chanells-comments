@@ -13,16 +13,16 @@ import config
 from open_url_with_chrome_profile import open_url_with_chrome_profile
 
 
-def run_local_server(flow, port):
+def run_local_server(flow, port, logger):
     try:
         return flow.run_local_server(port=port, access_type='offline', open_browser=False)
     except Exception as err:
-        print(f"Ошибка при запуске локального сервера: {err}")
+        logger.info(f"Ошибка при запуске локального сервера: {err}")
 
         raise
 
 
-def stop_server_after_timeout(start_time, timeout, stop_event=None):
+def stop_server_after_timeout(start_time, timeout, stop_event, logger):
     try:
         while time.time() - start_time < timeout:
             time.sleep(1)
@@ -32,7 +32,7 @@ def stop_server_after_timeout(start_time, timeout, stop_event=None):
 
         os.kill(os.getpid(), signal.SIGTERM)  # Завершаем процесс с помощью сигнала
     except Exception as e:
-        print(f"Ошибка при завершении сервера после тайм-аута: {e}")
+        logger.info(f"Ошибка при завершении сервера после тайм-аута: {e}")
 
 
 def update_credentials(client_secret_path, token_path, timeout, logger):
@@ -43,10 +43,10 @@ def update_credentials(client_secret_path, token_path, timeout, logger):
         port = random.randint(1024, 65535)
 
         flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, config.scopes)
-        server_thread = threading.Thread(target=run_local_server, args=(flow, port))
+        server_thread = threading.Thread(target=run_local_server, args=(flow, port, logger))
         server_thread.start()
 
-        timer_thread = threading.Thread(target=stop_server_after_timeout, args=(start_time, timeout, stop_event))
+        timer_thread = threading.Thread(target=stop_server_after_timeout, args=(start_time, timeout, stop_event, logger))
         timer_thread.daemon = True
         timer_thread.start()
 
