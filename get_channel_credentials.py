@@ -7,7 +7,7 @@ from show_message_box import show_message_box
 from update_credentials import update_credentials
 
 
-def get_channel_credentials(client_secret_path, token_path, user_name, timeout, main_logger):
+def get_channel_credentials(client_secret_path, token_path, timeout, main_logger):
     logger = main_logger.getChild('get_channel_credentials')
     token_path = os.path.normpath(token_path)
     credentials = None
@@ -27,7 +27,7 @@ def get_channel_credentials(client_secret_path, token_path, user_name, timeout, 
                 with open(token_path, 'wb') as token:
                     pickle.dump(credentials, token)
 
-                logger.info(f"Токен для канала {user_name} успешно обновлен.")
+                logger.info(f"Токен {token_path} успешно обновлен.")
             except Exception as err:
                 if "invalid_grant" in str(err):
                     logger.error("refresh_token аннулирован. Требуется переавторизация .")
@@ -36,14 +36,13 @@ def get_channel_credentials(client_secret_path, token_path, user_name, timeout, 
 
                 result = show_message_box(
                     title="Обновление токена",
-                    message=f"Необходимо обновить токен для канала {user_name}. Начать обновление?",
+                    message=f"Необходимо обновить токен {token_path}. Начать обновление?",
                     text_button_true="Начать обновление токена"
                 )
 
                 if result != 1:
                     return None
 
-                # Запуск процесса переавторизации
                 update_credentials(
                     client_secret_path=client_secret_path,
                     token_path=token_path,
@@ -51,15 +50,16 @@ def get_channel_credentials(client_secret_path, token_path, user_name, timeout, 
                     logger=logger
                 )
 
-                logger.info(f"Учетные данные для канала {user_name} обновлены.")
+                logger.info(f"Учетные данные {token_path} обновлены.")
 
                 with open(token_path, 'rb') as token:
                     credentials = pickle.load(token)
         else:
-            logger.info(f"Обновление учетных данных для канала {user_name}.")
+            logger.info(f"Обновление учетных данных {token_path}.")
+
             result = show_message_box(
                 title="Обновление токена",
-                message=f"Необходимо обновить токен для канала {user_name}. Начать обновление?",
+                message=f"Необходимо обновить токен {token_path}. Начать обновление?",
                 text_button_true="Начать обновление токена"
             )
 
@@ -76,9 +76,9 @@ def get_channel_credentials(client_secret_path, token_path, user_name, timeout, 
             with open(token_path, 'rb+') as token:
                 credentials = pickle.load(token)
 
-            logger.info(f"Учетные данные для канала {user_name} обновлены.")
+            logger.info(f"Учетные данные {token_path} обновлены.")
     except Exception as err:
-        logger.error(f"Ошибка при получении токена для канала {user_name}: {err}")
+        logger.error(f"Ошибка при получении токена {token_path}: {err}")
 
         show_message_box(
             title="Ошибка получения токена",
