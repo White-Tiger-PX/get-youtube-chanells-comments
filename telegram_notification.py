@@ -38,10 +38,10 @@ async def send_message_to_chat(
         logger.error(f"Ошибка при отправке сообщения: {e}")
 
 
-async def send_message_to_thread(
+async def send_message_to_group(
     message,
-    thread_id,
     main_logger,
+    thread_id=None,
     pin_message=False,
     mention_user=False,
     parse_mode='HTML',
@@ -59,12 +59,19 @@ async def send_message_to_thread(
         if mention_user and user_id:
             message = f"{message}[\\.](tg://user?id={user_id})"
 
-        sent_message = await bot.send_message(
-            chat_id=chat_id,
-            text=message,
-            message_thread_id=thread_id,
-            parse_mode=parse_mode
-        )
+        if thread_id:
+            sent_message = await bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                message_thread_id=thread_id,
+                parse_mode=parse_mode
+            )
+        else:
+            sent_message = await bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                parse_mode=parse_mode
+            )
 
         if pin_message:
             await bot.pin_chat_message(chat_id=chat_id, message_id=sent_message.message_id)

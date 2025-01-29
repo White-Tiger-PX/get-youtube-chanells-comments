@@ -12,7 +12,7 @@ from init_database import init_database
 from get_video_comments import get_video_comments
 from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
-from telegram_notification import send_message_to_thread, send_message_to_chat
+from telegram_notification import send_message_to_group, send_message_to_chat
 
 
 def get_created_at_local(created_at):
@@ -132,7 +132,7 @@ def send_new_comments_to_telegram(new_comments, channel_name):
                     )
                 else:
                     asyncio.run(
-                        send_message_to_thread(
+                        send_message_to_group(
                             message=telegram_message,
                             thread_id=config.thread_id,
                             mention_user=need_mention_user,
