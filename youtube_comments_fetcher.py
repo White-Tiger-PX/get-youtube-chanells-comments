@@ -231,26 +231,6 @@ def save_comments_to_db(database_path, comments, channel_name):
     return new_comments
 
 
-def get_user_name(youtube_service):
-    """
-    Получение имени пользователя через YouTube API.
-    """
-    try:
-        response = youtube_service.channels().list(
-            part="snippet",
-            mine=True
-        ).execute()
-
-        if "items" in response and len(response["items"]) > 0:
-            return response["items"][0]["snippet"]["title"]
-
-        raise ValueError("Не удалось получить информацию о пользователе.")
-    except Exception as e:
-        logger.error(f"Ошибка при получении имени пользователя: {e}")
-
-        raise
-
-
 def main():
     logger.info("Программа для получения комментариев с каналов запущена!")
 
