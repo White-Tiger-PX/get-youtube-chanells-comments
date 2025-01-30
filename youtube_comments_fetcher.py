@@ -202,7 +202,7 @@ def main():
         main_logger=logger
     )
 
-    for channel_data in config.chanells:
+    for channel_data in config.channels:
         try:
             token_path = channel_data["token_channel_path"]
             client_secret_path = channel_data["client_secret_path"]
@@ -227,17 +227,15 @@ def main():
 
             for i, video_id in enumerate(video_ids):
                 try:
-                    print(f"Channel: {channel_name}, video: {video_id}...")
-
                     comments = get_video_comments(youtube_service, video_id, logger=logger)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
                     if config.send_notification_on_telegram:
                         send_new_comments_to_telegram(new_comments, channel_name)
                 except Exception as e:
-                    logger.error(f"Ошибка при обновлении комментариев для видео {video_id} от {channel_name}: {e}")
+                    logger.error(f"Ошибка при обновлении комментариев для видео {video_id} от [ {channel_name} ]: {e}")
 
-            logger.info(f"Обновлено {len(video_ids)} видео от {channel_name}")
+            logger.info(f"Обновлено {len(video_ids)} видео от [ {channel_name} ]")
 
         except Exception as e:
             logger.error(f"Ошибка обработки канала с токеном {token_path}: {e}")
