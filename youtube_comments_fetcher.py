@@ -13,6 +13,7 @@ from get_video_comments import get_video_comments
 from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
 from telegram_notification import send_message_to_group, send_message_to_chat
+from utils_youtube import get_channel_info, get_youtube_service
 
 
 def get_created_at_local(created_at):
@@ -60,10 +61,6 @@ def format_created_at_from_iso(created_at_iso, date_format):
         logger.error(f"Ошибка обработки даты: {err}")
 
         raise ValueError(f"Ошибка обработки даты: {err}")
-
-
-def get_youtube_service(credentials):
-    return build('youtube', 'v3', credentials=credentials)
 
 
 def send_new_comments_to_telegram(new_comments, channel_name):
@@ -252,19 +249,6 @@ def get_user_name(youtube_service):
         logger.error(f"Ошибка при получении имени пользователя: {e}")
 
         raise
-
-def get_channel_info(youtube_service):
-    request = youtube_service.channels().list(
-        part="id,snippet,contentDetails,statistics",
-        mine=True
-    )
-
-    response = request.execute()
-
-    if response['items']:
-        return response['items'][0]
-
-    return None
 
 
 def main():
