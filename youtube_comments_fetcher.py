@@ -2,9 +2,6 @@ import time
 import asyncio
 import sqlite3
 
-from datetime import datetime, timedelta
-from googleapiclient.discovery import build
-
 import config
 
 from set_logger import set_logger
@@ -12,22 +9,9 @@ from init_database import init_database
 from get_video_comments import get_video_comments
 from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
-from telegram_notification import send_message_to_group, send_message_to_chat
+from telegram_notification import send_message_to_chat, send_message_to_group
 from utils_youtube import get_channel_info, get_youtube_service
-
-
-def get_created_at_local(created_at):
-    try:
-        # Преобразуем строку в datetime в формате UTC
-        created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-
-        created_at_local = created_at + timedelta(hours=config.utc_offset_hours)
-
-        return created_at_local
-    except ValueError as err:
-        logger.error(f"Ошибка преобразования даты: {err}")
-
-        raise Exception("Ошибка в формате даты.")
+from utils import format_created_at_from_iso
 
 
 def escape_markdown(text):
@@ -42,27 +26,6 @@ def escape_markdown(text):
     return ''.join(f'\\{char}' if char in reserved_chars else char for char in text)
 
 
-def format_created_at_from_iso(created_at_iso, date_format):
-    """
-    Преобразует дату в ISO формате в локальное время и форматирует в строку заданного формата.
-
-    :param logger: Логгер для записи ошибок.
-    :param created_at_iso: Дата в формате ISO (например, "2024-01-31T12:00:00Z").
-    :param date_format: Формат для вывода даты (например, "%Y-%m-%d %H:%M:%S").
-    :return: Строка с датой в заданном формате.
-    """
-    try:
-        # Преобразование в объект datetime с учетом локального времени
-        created_at_local = get_created_at_local(created_at_iso)
-
-        # Форматирование в строку по указанному формату
-        return created_at_local.strftime(date_format)
-    except Exception as err:
-        logger.error(f"Ошибка обработки даты: {err}")
-
-        raise ValueError(f"Ошибка обработки даты: {err}")
-
-
 def send_new_comments_to_telegram(new_comments, channel_name):
     for new_comment in new_comments:
         try:
@@ -73,7 +36,7 @@ def send_new_comments_to_telegram(new_comments, channel_name):
             updated_date = new_comment['updated_date']
             reply_to = new_comment['reply_to']
 
-            formatted_date = format_created_at_from_iso(publish_date, '%Y-%m-%d %H:%M:%S')
+            formatted_date = format_created_at_from_iso(publish_date, '%Y-%m-%d %H:%M:%S', logger)
 
             video_url = f"https://www.com/watch?v={video_id}"
             channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
