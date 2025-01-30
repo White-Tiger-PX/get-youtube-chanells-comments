@@ -1,5 +1,4 @@
-import time
-import requests
+from googleapiclient.errors import HttpError
 
 
 def get_video_comments(youtube_service, video_id, logger):
@@ -16,55 +15,61 @@ def get_video_comments(youtube_service, video_id, logger):
         try:
             response = request.execute()
 
-            for item in response['items']:
-                top_comment = item['snippet']['topLevelComment']['snippet']
+            for item in response.get('items', []):
+                try:
+                    top_comment_data = item['snippet']['topLevelComment']
 
-                comments.append({
-                    "youtube_video_id": video_id,
-                    "channel_id": item['snippet']['channelId'],
+                    top_comment_data_to_db = {
+                        "youtube_video_id": item['snippet']['videoId'],
+                        "channel_id": item['snippet']['channelId'],
 
-                    "comment_id": item['id'],
-                    "author": top_comment['authorDisplayName'],
-                    "author_channel_id": top_comment['authorChannelId']['value'],
+                        "comment_id": item['id'],
+                        "author": top_comment_data['snippet']['authorDisplayName'],
+                        "author_channel_id": top_comment_data['snippet']['authorChannelId']['value'],
 
-                    "text": top_comment['textDisplay'],
-                    "publish_date": top_comment['publishedAt'],
-                    "updated_date": top_comment.get('updatedAt'),
-                    "reply_to": None
-                })
+                        "text": top_comment_data['snippet']['textDisplay'],
+                        "publish_date": top_comment_data['snippet']['publishedAt'],
+                        "updated_date": top_comment_data['snippet']['updatedAt'],
+                        "reply_to": None
+                    }
 
-                if not 'replies' in item:
-                    continue
+                    comments.append(top_comment_data_to_db)
 
-                for reply in item['replies']['comments']:
-                    comments.append({
-                        "youtube_video_id": video_id,
-                        "channel_id": reply['snippet']['channelId'],
+                    if 'replies' in item:
+                        for reply in item['replies']['comments']:
+                            comments.append({
+                                "youtube_video_id": reply['snippet']['videoId'],
+                                "channel_id": reply['snippet']['channelId'],
 
-                        "comment_id": reply['id'],
-                        "author": reply['snippet']['authorDisplayName'],
-                        "author_channel_id": reply['snippet']['authorChannelId']['value'],
+                                "comment_id": reply['id'],
+                                "author": reply['snippet']['authorDisplayName'],
+                                "author_channel_id": reply['snippet']['authorChannelId']['value'],
 
-                        "text": reply['snippet']['textDisplay'],
-                        "publish_date": reply['snippet']['publishedAt'],
-                        "updated_date": reply['snippet'].get('updatedAt'),
-                        "reply_to": reply['snippet'].get('parentId')
-                    })
+                                "text": reply['snippet']['textDisplay'],
+                                "publish_date": reply['snippet']['publishedAt'],
+                                "updated_date": reply['snippet']['updatedAt'],
+                                "reply_to": reply['snippet'].get('parentId')
+                            })
+                except KeyError as e:
+                    logger.error(f"Отсутствует ключ {e} в комментарии: {item}")
+                except Exception as e:
+                    logger.error(f"Ошибка обработки комментария {item['id']}: {e}")
 
             request = youtube_service.commentThreads().list_next(request, response)
-        except requests.exceptions.HTTPError as e:
-            if e.response and e.response.status_code == 401:
+        except HttpError as e:
+            error_message = str(e)
+
+            if e.resp.status == 401:
+                logger.warning("Ошибка 401: Недействительный API-ключ или истекший токен доступа.")
+
                 break
-            elif e.response.status_code == 403 and "commentsDisabled" in str(e):
+            elif e.resp.status == 403 and "commentsDisabled" in error_message:
                 logger.warning(f"Комментарии отключены для видео {video_id}, пропускаем...")
-                return []
 
-            logger.error(f"Ошибка при получении комментариев для видео {video_id}: {e}")
+                break
 
-            break
+            logger.error(f"Ошибка при получении комментариев для видео {video_id}: {error_message}")
         except Exception as e:
             logger.error(f"Ошибка при обновлении комментариев видео {video_id}: {e}")
-
-            break
 
     return comments
