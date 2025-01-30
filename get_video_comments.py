@@ -55,7 +55,7 @@ def get_video_comments(youtube_service, video_id, logger):
                                 "reply_to": reply['snippet'].get('parentId')
                             })
 
-                    if config.save_response_data_to_json:
+                    if config.save_comments_data_to_json:
                         save_comment_data(item, logger)
                 except KeyError as e:
                     logger.error(f"Отсутствует ключ {e} в комментарии: {item}")

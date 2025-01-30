@@ -22,18 +22,6 @@ user_data_dir = ""
 profile_directory = "Profiles - "
 chrome_executable_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"
 
-# Список каналов для работы с YouTube API
-channels = [
-    {
-        "token_channel_path": "token_channel_1.pickle",
-        "client_secret_path": "client_secret_1.json"
-    },
-    {
-        "token_channel_path": "token_channel_2.pickle",
-        "client_secret_path": "client_secret_2.json"
-    }
-]
-
 # Отправлять ли комментарии в Telegram
 send_notification_on_telegram = False
 
@@ -51,13 +39,25 @@ user_id = None
 # ID темы в Telegram, в которую необходимо отправить сообщение
 # Главная тема имеет id = 0
 # id тем совпадают с номером сообщений, в которых Telegram объявляет создание темы
-thread_id = 0
+thread_id = None
 
 # Токен для Telegram бота (замените на свой)
 telegram_bot_token = "your_telegram_bot_token_here"
 
 # Параметр, указывающий, нужно ли сохранять данные комментариев в файлах json
-save_response_data_to_json = False
+save_comments_data_to_json = False
 
 # Путь к папке для сохранения данных комментариев в файлах json
 path_to_comments_data_storage_dir = "comments_data"
+
+# Список каналов для работы с YouTube API
+channels = [
+    {
+        "token_channel_path": "token_channel_1.pickle",
+        "client_secret_path": "client_secret_1.json"
+    },
+    {
+        "token_channel_path": "token_channel_2.pickle",
+        "client_secret_path": "client_secret_2.json"
+    }
+]
