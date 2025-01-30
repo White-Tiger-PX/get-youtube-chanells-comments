@@ -1,5 +1,5 @@
 # Путь к папке для логов трансляций (измените на свой путь)
-log_folder = "logs/get_youtube_chanells_comments"
+log_folder = "logs/youtube_comments_fetcher"
 
 # Время смещения от UTC в часах
 utc_offset_hours = 0
@@ -55,3 +55,9 @@ thread_id = 0
 
 # Токен для Telegram бота (замените на свой)
 telegram_bot_token = "your_telegram_bot_token_here"
+
+# Параметр, указывающий, нужно ли сохранять данные комментариев в файлах json
+save_response_data_to_json = False
+
+# Путь к папке для сохранения данных комментариев в файлах json
+path_to_comments_data_storage_dir = "comments_data"

@@ -1,5 +1,9 @@
 from googleapiclient.errors import HttpError
 
+import config
+
+from utils import save_comment_data
+
 
 def get_video_comments(youtube_service, video_id, logger):
     comments = []
@@ -50,6 +54,9 @@ def get_video_comments(youtube_service, video_id, logger):
                                 "updated_date": reply['snippet']['updatedAt'],
                                 "reply_to": reply['snippet'].get('parentId')
                             })
+
+                    if config.save_response_data_to_json:
+                        save_comment_data(item, logger)
                 except KeyError as e:
                     logger.error(f"Отсутствует ключ {e} в комментарии: {item}")
                 except Exception as e:
@@ -67,8 +74,12 @@ def get_video_comments(youtube_service, video_id, logger):
                 logger.warning(f"Комментарии отключены для видео {video_id}, пропускаем...")
 
                 break
+            elif e.resp.status == 404:
+                logger.error(f"Ошибка 404: Видео {video_id} не найдено.")
 
-            logger.error(f"Ошибка при получении комментариев для видео {video_id}: {error_message}")
+                break
+            else:
+                logger.error(f"Ошибка при получении комментариев для видео {video_id}: {error_message}")
         except Exception as e:
             logger.error(f"Ошибка при обновлении комментариев видео {video_id}: {e}")
 
