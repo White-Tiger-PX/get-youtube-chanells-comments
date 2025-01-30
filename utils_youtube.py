@@ -9,9 +9,7 @@ def get_youtube_service(credentials, timeout=15):
     return youtube_service
 
 
-def get_channel_info(credentials):
-    youtube_service = get_youtube_service(credentials)
-
+def get_channel_info(youtube_service):
     request = youtube_service.channels().list(
         part="id,snippet,contentDetails,statistics",
         mine=True
