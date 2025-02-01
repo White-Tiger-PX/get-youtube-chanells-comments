@@ -3,7 +3,7 @@ import time
 import googleapiclient.errors
 
 
-def get_all_video_ids_from_channel(youtube_service, upload_playlist_id, logger):
+def get_all_video_ids_from_channel(youtube_service, upload_playlist_id, channel_name, logger):
     """
     Получает все идентификаторы видео из указанного плейлиста YouTube.
 
@@ -27,7 +27,7 @@ def get_all_video_ids_from_channel(youtube_service, upload_playlist_id, logger):
                 item['contentDetails']['videoId'] for item in response['items']
             )
             page_count += 1
-            logger.info(f"Страница {page_count}: {len(video_ids)} видео")
+            logger.info(f"Канал: {channel_name} | Страница: {page_count} | Всего видео: {len(video_ids)}")
 
             request = youtube_service.playlistItems().list_next(request, response)
         except googleapiclient.errors.HttpError as e:

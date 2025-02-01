@@ -223,6 +223,7 @@ def main():
             video_ids = get_all_video_ids_from_channel(
                 youtube_service=youtube_service,
                 upload_playlist_id=upload_playlist_id,
+                channel_name=channel_name,
                 logger=logger
             )
 
