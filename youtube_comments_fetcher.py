@@ -179,9 +179,8 @@ def save_comments_to_db(database_path, comments, channel_name):
                 new_comments.append(comment)
             except KeyError as key_err:
                 logger.error(f"Ошибка: отсутствует ключ в данных комментария: {key_err}")
-
-            except Exception as comment_err:
-                logger.error(f"Ошибка обработки комментария {comment_id}: {comment_err}")
+            except Exception as comment_insert_err:
+                logger.error(f"Ошибка обработки комментария {comment_id}: {comment_insert_err}")
 
         conn.commit()
     except sqlite3.Error as db_err:
@@ -219,24 +218,29 @@ def main():
             channel_name = channel_info['snippet']['title']
             upload_playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
 
+            logger.info(f"Началось обновление комментариев с канала [ {channel_name} ]")
+
             video_ids = get_all_video_ids_from_channel(
                 youtube_service=youtube_service,
                 upload_playlist_id=upload_playlist_id,
                 logger=logger
             )
 
+            count_videos = len(video_ids)
+
             for i, video_id in enumerate(video_ids):
                 try:
+                    video_label = f"[ {channel_name} | {video_id} | {i+1}/{count_videos} ]"
+
+                    logger.info(f"Обновление комментариев видео {video_label}")
+
                     comments = get_video_comments(youtube_service, video_id, logger=logger)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
                     if config.send_notification_on_telegram:
                         send_new_comments_to_telegram(new_comments, channel_name)
                 except Exception as e:
-                    logger.error(f"Ошибка при обновлении комментариев для видео {video_id} от [ {channel_name} ]: {e}")
-
-            logger.info(f"Обновлено {len(video_ids)} видео от [ {channel_name} ]")
-
+                    logger.error(f"Ошибка при обновлении комментариев для {video_label}: {e}")
         except Exception as e:
             logger.error(f"Ошибка обработки канала с токеном {token_path}: {e}")
 
