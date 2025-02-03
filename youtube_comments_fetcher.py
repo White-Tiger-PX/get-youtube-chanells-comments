@@ -114,7 +114,6 @@ def send_new_comments_to_telegram(new_comments, channel_name):
             logger.error("Ошибка обработки комментария: %s", err)
 
 
-
 def save_comments_to_db(database_path, comments, channel_name):
     if not comments:
         return []
@@ -122,39 +121,51 @@ def save_comments_to_db(database_path, comments, channel_name):
     new_comments = []
 
     try:
-        conn = sqlite3.connect(database_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(database_path) as conn:
+            cursor = conn.cursor()
 
-        for comment in comments:
-            try:
-                video_id = comment['youtube_video_id']
-                channel_id = comment['channel_id']
-                comment_id = comment['comment_id']
-                author = comment['author']
-                author_channel_id = comment['author_channel_id']
-                text = comment['text']
-                publish_date = comment['publish_date']
-                updated_date = comment['updated_date']
-                reply_to = comment['reply_to']
+            for comment in comments:
+                try:
+                    video_id = comment['youtube_video_id']
+                    channel_id = comment['channel_id']
+                    comment_id = comment['comment_id']
+                    author = comment['author']
+                    author_channel_id = comment['author_channel_id']
+                    text = comment['text']
+                    publish_date = comment['publish_date']
+                    updated_date = comment['updated_date']
+                    reply_to = comment['reply_to']
 
-                # Проверяем, есть ли уже такой комментарий с такой датой обновления
-                cursor.execute('''
-                    SELECT 1
-                    FROM comments
-                    WHERE comment_id = ? AND updated_date = ?
-                ''', (comment_id, updated_date))
+                    # Проверяем, есть ли уже такой комментарий с такой датой обновления
+                    cursor.execute('''
+                        SELECT 1
+                        FROM comments
+                        WHERE comment_id = ? AND updated_date = ?
+                    ''', (comment_id, updated_date))
 
-                if cursor.fetchone():  # Если комментарий уже есть, пропускаем
-                    continue
+                    if cursor.fetchone():  # Если комментарий уже есть, пропускаем
+                        continue
 
-                if reply_to:
-                    logger.info("Новай запись с ответом на комментарий от %s: %s", author, text)
-                else:
-                    logger.info("Новая запись с комментарием от %s: %s", author, text)
+                    if reply_to:
+                        logger.info("Новая запись с ответом на комментарий от %s: %s", author, text)
+                    else:
+                        logger.info("Новая запись с комментарием от %s: %s", author, text)
 
-                cursor.execute('''
-                    INSERT INTO comments (
-                        youtube_video_id,
+                    cursor.execute('''
+                        INSERT INTO comments (
+                            youtube_video_id,
+                            channel_name,
+                            channel_id,
+                            comment_id,
+                            author,
+                            author_channel_id,
+                            text,
+                            publish_date,
+                            updated_date,
+                            reply_to
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        video_id,
                         channel_name,
                         channel_id,
                         comment_id,
@@ -164,33 +175,17 @@ def save_comments_to_db(database_path, comments, channel_name):
                         publish_date,
                         updated_date,
                         reply_to
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    video_id,
-                    channel_name,
-                    channel_id,
-                    comment_id,
-                    author,
-                    author_channel_id,
-                    text,
-                    publish_date,
-                    updated_date,
-                    reply_to
-                ))
+                    ))
 
-                new_comments.append(comment)
-            except KeyError as key_err:
-                logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
-            except Exception as err:
-                logger.error("Ошибка обработки комментария %s: %s", comment_id, err)
-
-        conn.commit()
+                    new_comments.append(comment)
+                except KeyError as key_err:
+                    logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
+                except Exception as err:
+                    logger.error("Ошибка обработки комментария %s: %s", comment_id, err)
     except sqlite3.Error as err:
         logger.error("Ошибка базы данных: %s", err)
     except Exception as err:
         logger.error("Ошибка в функции save_comments_to_db: %s", err)
-    finally:
-        conn.close()
 
     return new_comments
 
