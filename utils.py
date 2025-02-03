@@ -17,7 +17,7 @@ def get_created_at_local(created_at, logger):
     except ValueError as err:
         logger.error("Ошибка преобразования даты: %s", err)
 
-        raise Exception("Ошибка в формате даты.")
+        raise ValueError("Ошибка в формате даты.") from err
 
 
 def format_created_at_from_iso(created_at_iso, date_format, logger):
@@ -35,10 +35,10 @@ def format_created_at_from_iso(created_at_iso, date_format, logger):
 
         # Форматирование в строку по указанному формату
         return created_at_local.strftime(date_format)
-    except Exception as err:
+    except ValueError as err:
         logger.error("Ошибка обработки даты: %s", err)
 
-        raise ValueError(f"Ошибка обработки даты: {err}")
+        raise ValueError(f"Ошибка обработки даты: {err}") from err
 
 
 def load_json(file_path, default_type, logger):
@@ -50,7 +50,7 @@ def load_json(file_path, default_type, logger):
                 return json.load(file)
         else:
             logger.warning("Файл %s не найден, возвращаем значение по умолчанию.", file_path)
-    except Exception as err:
+    except (json.JSONDecodeError, OSError) as err:
         logger.error("Ошибка при загрузке файла %s: %s", file_path, err)
 
     return default_type
@@ -62,7 +62,7 @@ def save_json(file_path, data, logger):
 
         with open(file_path, 'w', encoding='utf-8') as file:
             json.dump(data, file, ensure_ascii=False, indent=4)
-    except Exception as err:
+    except OSError as err:
         logger.error("Ошибка при сохранении файла %s: %s", file_path, err)
 
 
@@ -113,5 +113,5 @@ def save_comment_data(comment_data, logger):
         logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
     except OSError as err:
         logger.error("Ошибка файловой системы: %s", err)
-    except Exception as err:
-        logger.exception("Неожиданная ошибка в save_comment_data: %s", err)
+    except Exception:
+        logger.exception("Неожиданная ошибка в save_comment_data.")
