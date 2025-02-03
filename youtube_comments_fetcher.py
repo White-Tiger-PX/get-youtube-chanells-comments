@@ -36,9 +36,13 @@ def send_new_comments_to_telegram(new_comments, channel_name):
             updated_date = new_comment['updated_date']
             reply_to = new_comment['reply_to']
 
-            formatted_date = format_created_at_from_iso(publish_date, '%Y-%m-%d %H:%M:%S', logger)
+            formatted_date = format_created_at_from_iso(
+                created_at_iso=publish_date,
+                date_format='%Y-%m-%d %H:%M:%S',
+                logger=logger
+            )
 
-            video_url = f"https://www.com/watch?v={video_id}"
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
             channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
 
             is_updated = updated_date and updated_date != publish_date
@@ -81,7 +85,7 @@ def send_new_comments_to_telegram(new_comments, channel_name):
             need_mention_user = True if config.user_id is not None else False
 
             try:
-                if config.user_id == config.chat_id:
+                if config.user_id and config.user_id == config.chat_id:
                     asyncio.run(
                         send_message_to_chat(
                             message=telegram_message,
@@ -102,15 +106,13 @@ def send_new_comments_to_telegram(new_comments, channel_name):
                     )
 
                 time.sleep(5)
-
             except Exception as err:
                 logger.error("Ошибка при отправке сообщения в Telegram: %s", err)
-
         except KeyError as key_err:
             logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
-
         except Exception as err:
             logger.error("Ошибка обработки комментария: %s", err)
+
 
 
 def save_comments_to_db(database_path, comments, channel_name):
