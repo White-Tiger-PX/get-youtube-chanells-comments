@@ -5,11 +5,27 @@ from datetime import datetime
 
 
 def set_logger(log_folder=None):
+    """
+    Создает и настраивает логгер для записи логов в файл и вывод в консоль.
+
+    Логгер использует формат:
+    `YYYY-MM-DD HH:MM:SS - LEVELNAME - Сообщение`
+
+    Если указана папка `log_folder`, логи также сохраняются в файле
+    с именем в формате `YYYY-MM-DD HH-MM-SS.log`.
+
+    Args:
+        log_folder (str, optional): Путь к папке для сохранения логов.
+            Если `None`, логи пишутся только в консоль.
+
+    Returns:
+        logging.Logger: Настроенный объект логгера.
+    """
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-    if log_folder:  # Создание файла с логами только если указана папка
+    if log_folder:
         log_filename = datetime.now().strftime('%Y-%m-%d %H-%M-%S.log')
         log_file_path = os.path.join(log_folder, log_filename)
 

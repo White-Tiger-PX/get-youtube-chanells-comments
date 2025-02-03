@@ -6,6 +6,19 @@ from set_logger import set_logger
 
 
 def init_database(database_path, main_logger):
+    """
+    Инициализирует базу данных SQLite, создавая таблицу `comments`, если она не существует.
+
+    Функция подключается к указанной базе данных, создаёт таблицу `comments` с нужными полями
+    и закрывает соединение.
+
+    Args:
+        database_path (str): Путь к файлу базы данных SQLite.
+        main_logger (logging.Logger): Логгер.
+
+    Returns:
+        None
+    """
     try:
         logger = main_logger.getChild('init_database')
         logger.info("Инициализация базы данных.")
@@ -16,7 +29,7 @@ def init_database(database_path, main_logger):
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       
+
                 youtube_video_id TEXT NOT NULL,
                 channel_name TEXT NOT NULL,
                 channel_id TEXT NOT NULL,

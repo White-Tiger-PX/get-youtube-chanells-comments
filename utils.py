@@ -1,47 +1,64 @@
 import os
 import json
-
 from datetime import datetime, timedelta
 
 import config
 
 
 def get_created_at_local(created_at, logger):
-    try:
-        # Преобразуем строку в datetime в формате UTC
-        created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+    """
+    Преобразует дату из UTC в локальное время.
 
+    Args:
+        created_at (str): Дата в формате UTC (например, "2024-02-01T12:00:00Z").
+        logger (logging.Logger): Логгер.
+
+    Returns:
+        datetime: Дата в локальном времени.
+    """
+    try:
+        created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
         created_at_local = created_at + timedelta(hours=config.utc_offset_hours)
 
         return created_at_local
     except ValueError as err:
         logger.error("Ошибка преобразования даты: %s", err)
-
         raise ValueError("Ошибка в формате даты.") from err
 
 
 def format_created_at_from_iso(created_at_iso, date_format, logger):
     """
-    Преобразует дату в ISO формате в локальное время и форматирует в строку заданного формата.
+    Преобразует дату из ISO-формата в локальное время и форматирует её.
 
-    :param logger: Логгер для записи ошибок.
-    :param created_at_iso: Дата в формате ISO (например, "2024-01-31T12:00:00Z").
-    :param date_format: Формат для вывода даты (например, "%Y-%m-%d %H:%M:%S").
-    :return: Строка с датой в заданном формате.
+    Args:
+        created_at_iso (str): Дата в ISO-формате.
+        date_format (str): Желаемый формат даты.
+        logger (logging.Logger): Логгер.
+
+    Returns:
+        str: Отформатированная дата.
     """
     try:
-        # Преобразование в объект datetime с учетом локального времени
         created_at_local = get_created_at_local(created_at_iso, logger)
-
-        # Форматирование в строку по указанному формату
+        
         return created_at_local.strftime(date_format)
     except ValueError as err:
         logger.error("Ошибка обработки даты: %s", err)
-
         raise ValueError(f"Ошибка обработки даты: {err}") from err
 
 
 def load_json(file_path, default_type, logger):
+    """
+    Загружает JSON-файл.
+
+    Args:
+        file_path (str): Путь к JSON-файлу.
+        default_type (dict or list): Значение по умолчанию, если файл не найден или поврежден.
+        logger (logging.Logger): Логгер.
+
+    Returns:
+        dict or list: Данные из JSON или значение по умолчанию.
+    """
     try:
         file_path = os.path.normpath(file_path)
 
@@ -57,6 +74,14 @@ def load_json(file_path, default_type, logger):
 
 
 def save_json(file_path, data, logger):
+    """
+    Сохраняет данные в JSON-файл.
+
+    Args:
+        file_path (str): Путь к JSON-файлу.
+        data (dict or list): Данные для сохранения.
+        logger (logging.Logger): Логгер.
+    """
     try:
         file_path = os.path.normpath(file_path)
 
@@ -67,6 +92,13 @@ def save_json(file_path, data, logger):
 
 
 def save_comment_data(comment_data, logger):
+    """
+    Сохраняет комментарий в JSON-файл.
+
+    Args:
+        comment_data (dict): Данные комментария.
+        logger (logging.Logger): Логгер.
+    """
     try:
         top_level_comment_data = comment_data['snippet']['topLevelComment']
 

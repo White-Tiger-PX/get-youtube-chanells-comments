@@ -8,6 +8,23 @@ from update_credentials import update_credentials
 
 
 def get_channel_credentials(client_secret_path, token_path, timeout, main_logger):
+    """
+    Получает учетные данные канала, проверяя и обновляя токен доступа, если это необходимо.
+
+    Сначала проверяется, существует ли токен. Если токен существует и действителен, он возвращается.
+    Если токен истек, но имеется `refresh_token`, пытается обновить токен.
+    Если обновление не удалось или токен отсутствует, уведомляет пользователя о необходимости обновления учетных данных и инициирует процесс обновления.
+
+    Args:
+        client_secret_path (str): Путь к файлу с секретом клиента (client_secret.json).
+        token_path (str): Путь к файлу, где хранится токен доступа.
+        timeout (int): Таймаут для сетевых запросов при обновлении токена.
+        main_logger (logging.Logger): Логгер для записи информации о процессе.
+
+    Returns:
+        google.auth.credentials.Credentials: Объект учетных данных канала.
+        None: Если не удалось получить или обновить учетные данные.
+    """
     logger = main_logger.getChild('get_channel_credentials')
     token_path = os.path.normpath(token_path)
     credentials = None

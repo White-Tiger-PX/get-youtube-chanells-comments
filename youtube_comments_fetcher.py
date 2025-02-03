@@ -17,6 +17,12 @@ from utils import format_created_at_from_iso
 def escape_markdown(text):
     """
     Экранирует зарезервированные символы Markdown V2.
+
+    Args:
+        text (str): Текст, который нужно экранировать.
+
+    Returns:
+        str: Экранированный текст.
     """
     if not text:
         return text
@@ -27,6 +33,13 @@ def escape_markdown(text):
 
 
 def send_new_comments_to_telegram(new_comments, channel_name):
+    """
+    Отправляет новые комментарии в Telegram.
+
+    Args:
+        new_comments (list): Список новых комментариев.
+        channel_name (str): Имя канала.
+    """
     for new_comment in new_comments:
         try:
             video_id = new_comment['youtube_video_id']
@@ -115,6 +128,17 @@ def send_new_comments_to_telegram(new_comments, channel_name):
 
 
 def save_comments_to_db(database_path, comments, channel_name):
+    """
+    Сохраняет новые комментарии в базу данных.
+
+    Args:
+        database_path (str): Путь к базе данных.
+        comments (list): Список комментариев.
+        channel_name (str): Имя канала.
+
+    Returns:
+        list: Список новых комментариев, успешно сохранённых в базу данных.
+    """
     if not comments:
         return []
 
@@ -191,6 +215,9 @@ def save_comments_to_db(database_path, comments, channel_name):
 
 
 def main():
+    """
+    Главная функция для запуска процесса получения комментариев с каналов.
+    """
     logger.info("Программа для получения комментариев с каналов запущена!")
 
     init_database(
