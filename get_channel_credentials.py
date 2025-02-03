@@ -27,12 +27,12 @@ def get_channel_credentials(client_secret_path, token_path, timeout, main_logger
                 with open(token_path, 'wb') as token:
                     pickle.dump(credentials, token)
 
-                logger.info(f"Токен {token_path} успешно обновлен.")
+                logger.info("Токен %s успешно обновлен.", token_path)
             except Exception as err:
                 if "invalid_grant" in str(err):
-                    logger.error("refresh_token аннулирован. Требуется переавторизация .")
+                    logger.error("refresh_token аннулирован. Требуется переавторизация.")
                 else:
-                    logger.error(f"Ошибка обновления токена: {err}")
+                    logger.error("Ошибка обновления токена: %s", err)
 
                 result = show_message_box(
                     title="Обновление токена",
@@ -50,12 +50,12 @@ def get_channel_credentials(client_secret_path, token_path, timeout, main_logger
                     logger=logger
                 )
 
-                logger.info(f"Учетные данные {token_path} обновлены.")
+                logger.info("Учетные данные %s обновлены.", token_path)
 
                 with open(token_path, 'rb') as token:
                     credentials = pickle.load(token)
         else:
-            logger.info(f"Обновление учетных данных {token_path}.")
+            logger.info("Обновление учетных данных %s.", token_path)
 
             result = show_message_box(
                 title="Обновление токена",
@@ -76,9 +76,9 @@ def get_channel_credentials(client_secret_path, token_path, timeout, main_logger
             with open(token_path, 'rb+') as token:
                 credentials = pickle.load(token)
 
-            logger.info(f"Учетные данные {token_path} обновлены.")
+            logger.info("Учетные данные %s обновлены.", token_path)
     except Exception as err:
-        logger.error(f"Ошибка при получении токена {token_path}: {err}")
+        logger.error("Ошибка при получении токена %s: %s", token_path, err)
 
         show_message_box(
             title="Ошибка получения токена",

@@ -67,8 +67,8 @@ def send_new_comments_to_telegram(new_comments, channel_name):
 
                     reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
                     reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
-                except Exception as db_err:
-                    logger.error(f"Ошибка при получении текста родительского комментария: {db_err}")
+                except Exception as err:
+                    logger.error("Ошибка при получении текста родительского комментария: %s", err)
                     reply_note = "\n\nОтвет на: _Ошибка при загрузке комментария_"
 
             telegram_message = (
@@ -103,14 +103,14 @@ def send_new_comments_to_telegram(new_comments, channel_name):
 
                 time.sleep(5)
 
-            except Exception as telegram_err:
-                logger.error(f"Ошибка при отправке сообщения в Telegram: {telegram_err}")
+            except Exception as err:
+                logger.error("Ошибка при отправке сообщения в Telegram: %s", err)
 
         except KeyError as key_err:
-            logger.error(f"Ошибка: отсутствует ключ в данных комментария: {key_err}")
+            logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
 
-        except Exception as e:
-            logger.error(f"Ошибка обработки комментария: {e}")
+        except Exception as err:
+            logger.error("Ошибка обработки комментария: %s", err)
 
 
 def save_comments_to_db(database_path, comments, channel_name):
@@ -146,9 +146,9 @@ def save_comments_to_db(database_path, comments, channel_name):
                     continue
 
                 if reply_to:
-                    logger.info(f"Новай запись с ответом на комментарий от {author}: {text}")
+                    logger.info("Новай запись с ответом на комментарий от %s: %s", author, text)
                 else:
-                    logger.info(f"Новая запись с комментарием от {author}: {text}")
+                    logger.info("Новая запись с комментарием от %s: %s", author, text)
 
                 cursor.execute('''
                     INSERT INTO comments (
@@ -178,15 +178,15 @@ def save_comments_to_db(database_path, comments, channel_name):
 
                 new_comments.append(comment)
             except KeyError as key_err:
-                logger.error(f"Ошибка: отсутствует ключ в данных комментария: {key_err}")
-            except Exception as comment_insert_err:
-                logger.error(f"Ошибка обработки комментария {comment_id}: {comment_insert_err}")
+                logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
+            except Exception as err:
+                logger.error("Ошибка обработки комментария %s: %s", comment_id, err)
 
         conn.commit()
-    except sqlite3.Error as db_err:
-        logger.error(f"Ошибка базы данных: {db_err}")
-    except Exception as e:
-        logger.error(f"Ошибка в функции save_comments_to_db: {e}")
+    except sqlite3.Error as err:
+        logger.error("Ошибка базы данных: %s", err)
+    except Exception as err:
+        logger.error("Ошибка в функции save_comments_to_db: %s", err)
     finally:
         conn.close()
 
@@ -218,7 +218,7 @@ def main():
             channel_name = channel_info['snippet']['title']
             upload_playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
 
-            logger.info(f"Началось обновление комментариев с канала [ {channel_name} ]")
+            logger.info("Началось обновление комментариев с канала [ %s ]", channel_name)
 
             video_ids = get_all_video_ids_from_channel(
                 youtube_service=youtube_service,
@@ -233,17 +233,19 @@ def main():
                 try:
                     video_label = f"[ {channel_name} | {video_id} | {i+1}/{count_videos} ]"
 
-                    logger.info(f"Обновление комментариев видео {video_label}")
+                    logger.info("Обновление комментариев видео %s", video_label)
 
                     comments = get_video_comments(youtube_service, video_id, logger=logger)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
                     if config.send_notification_on_telegram:
                         send_new_comments_to_telegram(new_comments, channel_name)
-                except Exception as e:
-                    logger.error(f"Ошибка при обновлении комментариев для {video_label}: {e}")
-        except Exception as e:
-            logger.error(f"Ошибка обработки канала с токеном {token_path}: {e}")
+                except Exception as err:
+                    logger.error("Ошибка при обновлении комментариев для %s: %s", video_label, err)
+
+            logger.info("Завершено обновление комментариев с канала [ %s ]", channel_name)
+        except Exception as err:
+            logger.error("Ошибка обработки канала с токеном %s: %s", token_path, err)
 
 
 if __name__ == "__main__":

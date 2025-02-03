@@ -15,11 +15,11 @@ async def send_message_to_chat(
     chat_id=config.chat_id,
     user_id=config.user_id
 ):
-    logging.getLogger("telegram").setLevel(logging.WARNING)  # Скроет логи telegram
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # Если используется httpx
-    logging.getLogger("urllib3").setLevel(logging.WARNING)  # Если используется urllib3
-    logging.getLogger("asyncio").setLevel(logging.WARNING)  # Скрывает лишние asyncio логи
-    logging.getLogger("httpcore").setLevel(logging.WARNING)  # В случае использования httpcore
+    logging.getLogger("telegram").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     logger = main_logger.getChild('telegram_notification')
 
@@ -38,8 +38,8 @@ async def send_message_to_chat(
         if pin_message:
             await bot.pin_chat_message(chat_id=chat_id, message_id=sent_message.message_id)
 
-    except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения: {e}")
+    except Exception as err:
+        logger.error("Неизвестная ошибка при открытии URL: %s", err)
 
 
 async def send_message_to_group(
@@ -53,11 +53,11 @@ async def send_message_to_group(
     chat_id=config.chat_id,
     user_id=config.user_id
 ):
-    logging.getLogger("telegram").setLevel(logging.WARNING)  # Скроет логи telegram
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # Если используется httpx
-    logging.getLogger("urllib3").setLevel(logging.WARNING)  # Если используется urllib3
-    logging.getLogger("asyncio").setLevel(logging.WARNING)  # Скрывает лишние asyncio логи
-    logging.getLogger("httpcore").setLevel(logging.WARNING)  # В случае использования httpcore
+    logging.getLogger("telegram").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
     logger = main_logger.getChild('telegram_notification')
 
@@ -84,5 +84,5 @@ async def send_message_to_group(
         if pin_message:
             await bot.pin_chat_message(chat_id=chat_id, message_id=sent_message.message_id)
 
-    except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения: {e}")
+    except Exception as err:
+        logger.error("Неизвестная ошибка при открытии URL: %s", err)

@@ -57,30 +57,27 @@ def get_video_comments(youtube_service, video_id, logger):
 
                     if config.save_comments_data_to_json:
                         save_comment_data(item, logger)
-                except KeyError as e:
-                    logger.error(f"Отсутствует ключ {e} в комментарии: {item}")
-                except Exception as e:
-                    logger.error(f"Ошибка обработки комментария {item['id']}: {e}")
+                except KeyError as err:
+                    logger.error("Отсутствует ключ %s в комментарии: %s", err, item)
+                except Exception as err:
+                    logger.error("Ошибка обработки комментария %s: %s", item['id'], err)
 
             request = youtube_service.commentThreads().list_next(request, response)
-        except HttpError as e:
-            error_message = str(e)
+        except HttpError as err:
+            error_message = str(err)
 
-            if e.resp.status == 401:
+            if err.resp.status == 401:
                 logger.warning("Ошибка 401: Недействительный API-ключ или истекший токен доступа.")
-
                 break
-            elif e.resp.status == 403 and "commentsDisabled" in error_message:
-                logger.warning(f"Комментарии отключены для видео {video_id}, пропускаем...")
-
+            elif err.resp.status == 403 and "commentsDisabled" in error_message:
+                logger.warning("Комментарии отключены для видео %s, пропускаем...", video_id)
                 break
-            elif e.resp.status == 404:
-                logger.error(f"Ошибка 404: Видео {video_id} не найдено.")
-
+            elif err.resp.status == 404:
+                logger.error("Ошибка 404: Видео %s не найдено.", video_id)
                 break
             else:
-                logger.error(f"Ошибка при получении комментариев для видео {video_id}: {error_message}")
-        except Exception as e:
-            logger.error(f"Ошибка при обновлении комментариев видео {video_id}: {e}")
+                logger.error("Ошибка при получении комментариев для видео %s: %s", video_id, error_message)
+        except Exception as err:
+            logger.error("Ошибка при обновлении комментариев видео %s: %s", video_id, err)
 
     return comments

@@ -17,7 +17,7 @@ def run_local_server(flow, port, logger):
     try:
         return flow.run_local_server(port=port, access_type='offline', open_browser=False)
     except Exception as err:
-        logger.info(f"Ошибка при запуске локального сервера: {err}")
+        logger.info("Ошибка при запуске локального сервера: %s", err)
 
         raise
 
@@ -32,7 +32,7 @@ def stop_server_after_timeout(start_time, timeout, stop_event, logger):
 
         os.kill(os.getpid(), signal.SIGTERM)  # Завершаем процесс с помощью сигнала
     except Exception as e:
-        logger.info(f"Ошибка при завершении сервера после тайм-аута: {e}")
+        logger.info("Ошибка при завершении сервера после тайм-аута: %s", e)
 
 
 def update_credentials(client_secret_path, token_path, timeout, logger):
@@ -53,7 +53,6 @@ def update_credentials(client_secret_path, token_path, timeout, logger):
         time.sleep(3)
 
         url = flow.authorization_url()[0]
-
 
         if config.use_specific_chrome_profile:
             open_url_with_chrome_profile(
@@ -80,7 +79,7 @@ def update_credentials(client_secret_path, token_path, timeout, logger):
 
         return credentials
     except Exception as err:
-        logger.error(f"Ошибка в процессе обновления учетных данных: {err}")
+        logger.error("Ошибка в процессе обновления учетных данных: %s", err)
 
         return None
     finally:

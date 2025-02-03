@@ -1,4 +1,3 @@
-
 import os
 import json
 
@@ -16,7 +15,7 @@ def get_created_at_local(created_at, logger):
 
         return created_at_local
     except ValueError as err:
-        logger.error(f"Ошибка преобразования даты: {err}")
+        logger.error("Ошибка преобразования даты: %s", err)
 
         raise Exception("Ошибка в формате даты.")
 
@@ -37,7 +36,7 @@ def format_created_at_from_iso(created_at_iso, date_format, logger):
         # Форматирование в строку по указанному формату
         return created_at_local.strftime(date_format)
     except Exception as err:
-        logger.error(f"Ошибка обработки даты: {err}")
+        logger.error("Ошибка обработки даты: %s", err)
 
         raise ValueError(f"Ошибка обработки даты: {err}")
 
@@ -110,9 +109,9 @@ def save_comment_data(comment_data, logger):
             data=comment_data,
             logger=logger
         )
-    except KeyError as e:
-        logger.error(f"Отсутствует ожидаемый ключ в comment_data: {e}")
-    except OSError as e:
-        logger.error(f"Ошибка файловой системы: {e}")
-    except Exception as e:
-        logger.exception(f"Неожиданная ошибка в save_comment_data: {e}")
+    except KeyError as err:
+        logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
+    except OSError as err:
+        logger.error("Ошибка файловой системы: %s", err)
+    except Exception as err:
+        logger.exception("Неожиданная ошибка в save_comment_data: %s", err)
