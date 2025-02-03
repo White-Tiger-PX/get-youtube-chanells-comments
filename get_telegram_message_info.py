@@ -9,7 +9,7 @@ from telegram.ext import (
 import config
 
 
-async def start(update: Update, context):
+async def start(update: Update):
     """
     Обрабатывает команду /start или текстовое сообщение от пользователя или канала.
 
@@ -18,7 +18,6 @@ async def start(update: Update, context):
 
     Args:
         update (telegram.Update): Объект обновления, содержащий данные о сообщении.
-        context (telegram.ext.CallbackContext): Контекст обработчика с дополнительными данными.
 
     Returns:
         None
