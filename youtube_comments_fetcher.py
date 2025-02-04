@@ -236,6 +236,14 @@ def comments_have_changed(past_data, current_data):
     return past_comments != current_comments
 
 
+def generate_save_path(channel_id, video_id, comment_id, updated_date):
+    folder_path = os.path.join(config.path_to_comments_data_storage_dir, channel_id)
+
+    os.makedirs(folder_path, exist_ok=True)
+
+    return os.path.join(folder_path, f"{channel_id} - {video_id} - {comment_id} - {updated_date}.json")
+
+
 def save_comment_data(comment_data, logger):
     """
     Сохраняет комментарий в JSON-файл.
@@ -257,20 +265,11 @@ def save_comment_data(comment_data, logger):
             logger=logger
         )
 
-        folder_path = os.path.join(
-            config.path_to_comments_data_storage_dir,
-            channel_id
-        )
 
-        os.makedirs(folder_path, exist_ok=True)
-
-        video_metadata_save_path = os.path.join(
-            folder_path,
-            f"{channel_id} - {video_id} - {comment_id} - {updated_date}.json"
-        )
+        save_path = generate_save_path(channel_id, video_id, comment_id, updated_date)
 
         past_json_data = load_json(
-            file_path=video_metadata_save_path,
+            file_path=save_path,
             default_type={},
             logger=logger
         )
@@ -279,7 +278,7 @@ def save_comment_data(comment_data, logger):
             return
 
         save_json(
-            file_path=video_metadata_save_path,
+            file_path=save_path,
             data=comment_data,
             logger=logger
         )
