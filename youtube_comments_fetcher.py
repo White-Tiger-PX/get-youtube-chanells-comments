@@ -1,3 +1,4 @@
+import os
 import time
 import asyncio
 import sqlite3
@@ -11,7 +12,7 @@ from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
 from telegram_notification import send_message_to_chat, send_message_to_group
 from utils_youtube import get_channel_info, get_youtube_service
-from utils import format_created_at_from_iso
+from utils import load_json, save_json, format_created_at_from_iso
 
 
 def escape_markdown(text):
@@ -214,6 +215,103 @@ def save_comments_to_db(database_path, comments, channel_name):
     return new_comments
 
 
+def save_comment_data(comment_data, logger):
+    """
+    Сохраняет комментарий в JSON-файл.
+
+    Args:
+        comment_data (dict): Данные комментария.
+        logger (logging.Logger): Логгер.
+    """
+    try:
+        top_level_comment_data = comment_data['snippet']['topLevelComment']
+
+        channel_id = comment_data['snippet']['channelId']
+        video_id = comment_data['snippet']['videoId']
+        comment_id = comment_data['id']
+
+        updated_date = format_created_at_from_iso(
+            created_at_iso=top_level_comment_data['snippet']['updatedAt'],
+            date_format="%Y-%m-%d %H-%M-%S",
+            logger=logger
+        )
+
+        folder_path = os.path.join(
+            config.path_to_comments_data_storage_dir,
+            channel_id
+        )
+
+        os.makedirs(folder_path, exist_ok=True)
+
+        video_metadata_save_path = os.path.join(
+            folder_path,
+            f"{channel_id} - {video_id} - {comment_id} - {updated_date}.json"
+        )
+
+        past_json_data = load_json(
+            file_path=video_metadata_save_path,
+            default_type={},
+            logger=logger
+        )
+
+        past_comments = past_json_data.get('replies', {}).get('comments')
+        current_comments = comment_data.get('replies', {}).get('comments')
+
+        if past_json_data and past_comments == current_comments:
+            return
+
+        save_json(
+            file_path=video_metadata_save_path,
+            data=comment_data,
+            logger=logger
+        )
+    except KeyError as err:
+        logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
+    except OSError as err:
+        logger.error("Ошибка файловой системы: %s", err)
+    except Exception:
+        logger.exception("Неожиданная ошибка в save_comment_data.")
+
+
+def format_comments(item):
+    comments = []
+
+    if config.save_comments_data_to_json:
+        save_comment_data(item, logger)
+
+    top_comment_data = item['snippet']['topLevelComment']
+
+    top_comment_data_to_db = {
+        "youtube_video_id": item['snippet']['videoId'],
+        "channel_id": item['snippet']['channelId'],
+        "comment_id": item['id'],
+        "author": top_comment_data['snippet']['authorDisplayName'],
+        "author_channel_id": top_comment_data['snippet']['authorChannelId']['value'],
+        "text": top_comment_data['snippet']['textDisplay'],
+        "publish_date": top_comment_data['snippet']['publishedAt'],
+        "updated_date": top_comment_data['snippet']['updatedAt'],
+        "reply_to": None
+    }
+
+    comments.append(top_comment_data_to_db)
+
+    if 'replies' in item:
+        for reply in item['replies']['comments']:
+            comments.append({
+                "youtube_video_id": reply['snippet']['videoId'],
+                "channel_id": reply['snippet']['channelId'],
+                "comment_id": reply['id'],
+                "author": reply['snippet']['authorDisplayName'],
+                "author_channel_id": reply['snippet']['authorChannelId']['value'],
+                "text": reply['snippet']['textDisplay'],
+                "publish_date": reply['snippet']['publishedAt'],
+                "updated_date": reply['snippet']['updatedAt'],
+                "reply_to": reply['snippet'].get('parentId')
+            })
+
+    return comments
+
+
 def main():
     """
     Главная функция для запуска процесса получения комментариев с каналов.
@@ -259,7 +357,13 @@ def main():
 
                     logger.info("Обновление комментариев видео %s", video_label)
 
-                    comments = get_video_comments(youtube_service, video_id, logger=logger)
+                    comments_data = get_video_comments(youtube_service, video_id, logger=logger)
+
+                    if config.save_comments_data_to_json:
+                        for comment_data in comments_data:
+                            save_comment_data(comment_data, logger)
+
+                    comments = format_comments(comment_data)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
                     if config.send_notification_on_telegram:
