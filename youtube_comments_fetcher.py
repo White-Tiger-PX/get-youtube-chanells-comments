@@ -33,99 +33,94 @@ def escape_markdown(text):
     return ''.join(f'\\{char}' if char in reserved_chars else char for char in text)
 
 
-def send_new_comments_to_telegram(new_comments, channel_name):
+def send_comment_to_telegram(new_comment, channel_name):
     """
-    Отправляет новые комментарии в Telegram.
+    Отправляет один комментарий в Telegram.
 
     Args:
-        new_comments (list): Список новых комментариев.
+        new_comment (dict): Данные комментария.
         channel_name (str): Имя канала.
     """
-    for new_comment in new_comments:
+    try:
+        video_id     = new_comment['snippet']['videoId']
+        author       = new_comment['snippet']['authorDisplayName']
+        text         = new_comment['snippet']['textDisplay']
+        publish_date = new_comment['snippet']['publishedAt']
+        updated_date = new_comment['snippet']['updatedAt']
+        reply_to     = new_comment['snippet'].get('parentId', None)
+
+        formatted_date = format_created_at_from_iso(
+            created_at_iso=publish_date,
+            date_format='%Y-%m-%d %H:%M:%S',
+            logger=logger
+        )
+
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+
+        is_updated = updated_date and updated_date != publish_date
+        quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
+
+        if is_updated:
+            quoted_text += "\n\n_\\(Комментарий изменён\\)_"
+
         try:
-            video_id = new_comment['youtube_video_id']
-            author = new_comment['author']
-            text = new_comment['text']
-            publish_date = new_comment['publish_date']
-            updated_date = new_comment['updated_date']
-            reply_to = new_comment['reply_to']
+            conn = sqlite3.connect(config.database_path)
+            cursor = conn.cursor()
 
-            formatted_date = format_created_at_from_iso(
-                created_at_iso=publish_date,
-                date_format='%Y-%m-%d %H:%M:%S',
-                logger=logger
-            )
+            cursor.execute('''
+                SELECT text
+                FROM comments
+                WHERE comment_id = ?
+            ''', (reply_to,))
 
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+            reply_text_row = cursor.fetchone()
+            conn.close()
 
-            is_updated = updated_date and updated_date != publish_date
-            quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
-
-            if is_updated:
-                quoted_text += "\n\n_\\(Комментарий изменён\\)_"
-
-            reply_note = ""
-
-            if reply_to:
-                try:
-                    conn = sqlite3.connect(config.database_path)
-                    cursor = conn.cursor()
-
-                    cursor.execute('''
-                        SELECT text
-                        FROM comments
-                        WHERE comment_id = ?
-                    ''', (reply_to,))
-
-                    reply_text_row = cursor.fetchone()
-                    conn.close()
-
-                    reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
-
-                    reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
-                    reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
-                except Exception as err:
-                    logger.error("Ошибка при получении текста родительского комментария: %s", err)
-                    reply_note = "\n\nОтвет на: _Ошибка при загрузке комментария_"
-
-            telegram_message = (
-                f"{channel_name_with_url}\n\n"
-                f"*Автор:* {escape_markdown(author)}\n\n"
-                f"{quoted_text}\n\n"
-                f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
-            )
-
-            need_mention_user = True if config.user_id is not None else False
-
-            try:
-                if config.user_id and config.user_id == config.chat_id:
-                    asyncio.run(
-                        send_message_to_chat(
-                            message=telegram_message,
-                            parse_mode='MarkdownV2',
-                            mention_user=need_mention_user,
-                            main_logger=logger
-                        )
-                    )
-                else:
-                    asyncio.run(
-                        send_message_to_group(
-                            message=telegram_message,
-                            thread_id=config.thread_id,
-                            mention_user=need_mention_user,
-                            parse_mode='MarkdownV2',
-                            main_logger=logger
-                        )
-                    )
-
-                time.sleep(5)
-            except Exception as err:
-                logger.error("Ошибка при отправке сообщения в Telegram: %s", err)
-        except KeyError as key_err:
-            logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
+            reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
+            reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
+            reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
         except Exception as err:
-            logger.error("Ошибка обработки комментария: %s", err)
+            logger.error("Ошибка при получении текста родительского комментария: %s", err)
+            reply_note = "\n\nОтвет на: _Ошибка при загрузке комментария_"
+
+        telegram_message = (
+            f"{channel_name_with_url}\n\n"
+            f"*Автор:* {escape_markdown(author)}\n\n"
+            f"{quoted_text}\n\n"
+            f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
+        )
+
+        need_mention_user = config.user_id is not None
+
+        try:
+            if config.user_id and config.user_id == config.chat_id:
+                asyncio.run(
+                    send_message_to_chat(
+                        message=telegram_message,
+                        parse_mode='MarkdownV2',
+                        mention_user=need_mention_user,
+                        main_logger=logger
+                    )
+                )
+            else:
+                asyncio.run(
+                    send_message_to_group(
+                        message=telegram_message,
+                        thread_id=config.thread_id,
+                        mention_user=need_mention_user,
+                        parse_mode='MarkdownV2',
+                        main_logger=logger
+                    )
+                )
+
+            time.sleep(5)
+        except Exception as err:
+            logger.error("Ошибка при отправке сообщения в Telegram: %s", err)
+    except KeyError as key_err:
+        logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
+    except Exception as err:
+        logger.error("Ошибка обработки комментария: %s", err)
 
 
 def comment_exists(cursor, comment_id, updated_date):
@@ -408,7 +403,8 @@ def main():
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
 
                     if config.send_notification_on_telegram:
-                        send_new_comments_to_telegram(new_comments, channel_name)
+                        for new_comment in new_comments:
+                            send_comment_to_telegram(new_comment, channel_name)
                 except Exception as err:
                     logger.error("Ошибка при обновлении комментариев для %s: %s", video_label, err)
 
