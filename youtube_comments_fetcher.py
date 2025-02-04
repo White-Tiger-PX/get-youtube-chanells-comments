@@ -229,14 +229,22 @@ def save_comments_to_db(database_path, comments, channel_name):
     return new_comments
 
 
-def comments_have_changed(past_data, current_data):
-    past_comments = past_data.get('replies', {}).get('comments')
-    current_comments = current_data.get('replies', {}).get('comments')
-
-    return past_comments != current_comments
-
-
 def generate_save_path(channel_id, video_id, comment_id, updated_date):
+    """
+    Генерирует путь для сохранения JSON-файла с данными комментария.
+
+    Создает директорию для хранения данных, если её не существует, и формирует имя файла,
+    включающее идентификаторы канала, видео, комментария и дату обновления.
+
+    Args:
+        channel_id (str): Идентификатор канала.
+        video_id (str): Идентификатор видео.
+        comment_id (str): Идентификатор комментария.
+        updated_date (str): Отформатированная дата обновления комментария.
+
+    Returns:
+        str: Полный путь к файлу для сохранения данных комментария.
+    """
     folder_path = os.path.join(config.path_to_comments_data_storage_dir, channel_id)
 
     os.makedirs(folder_path, exist_ok=True)
@@ -244,17 +252,43 @@ def generate_save_path(channel_id, video_id, comment_id, updated_date):
     return os.path.join(folder_path, f"{channel_id} - {video_id} - {comment_id} - {updated_date}.json")
 
 
-def save_comment_data(comment_data, logger):
+def comments_have_changed(past_data, current_data):
     """
-    Сохраняет комментарий в JSON-файл.
+    Сравнивает данные комментариев из двух источников и определяет, изменились ли ответы.
+
+    Функция извлекает список ответов (если они имеются) из прошлых и текущих данных и сравнивает их.
 
     Args:
-        comment_data (dict): Данные комментария.
-        logger (logging.Logger): Логгер.
+        past_data (dict): Ранее сохранённые данные комментария.
+        current_data (dict): Текущие данные комментария.
+
+    Returns:
+        bool: True, если данные ответов отличаются, иначе False.
+    """
+    past_comments = past_data.get('replies', {}).get('comments')
+    current_comments = current_data.get('replies', {}).get('comments')
+
+    return past_comments != current_comments
+
+
+def save_comment_data(comment_data):
+    """
+    Сохраняет данные комментария в JSON-файл.
+
+    Функция извлекает необходимую информацию из словаря комментария, формирует путь для сохранения файла,
+    загружает предыдущие данные (если они существуют) и сравнивает их с текущими данными. Если данные изменились,
+    производится сохранение обновленных данных в JSON-файл.
+
+    Args:
+        comment_data (dict): Словарь с данными комментария, полученными из API или другого источника.
+
+    Raises:
+        KeyError: Если ожидаемый ключ отсутствует в comment_data.
+        OSError: Если возникает ошибка при работе с файловой системой.
+        Exception: При возникновении непредвиденной ошибки.
     """
     try:
         top_level_comment_data = comment_data['snippet']['topLevelComment']
-
         channel_id = comment_data['snippet']['channelId']
         video_id = comment_data['snippet']['videoId']
         comment_id = comment_data['id']
@@ -265,36 +299,26 @@ def save_comment_data(comment_data, logger):
             logger=logger
         )
 
-
         save_path = generate_save_path(channel_id, video_id, comment_id, updated_date)
-
-        past_json_data = load_json(
-            file_path=save_path,
-            default_type={},
-            logger=logger
-        )
+        past_json_data = load_json(file_path=save_path, default_type={}, logger=logger)
 
         if past_json_data and not comments_have_changed(past_json_data, comment_data):
             return
 
-        save_json(
-            file_path=save_path,
-            data=comment_data,
-            logger=logger
-        )
+        save_json(file_path=save_path, data=comment_data, logger=logger)
     except KeyError as err:
         logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
     except OSError as err:
         logger.error("Ошибка файловой системы: %s", err)
     except Exception:
-        logger.exception("Неожиданная ошибка в save_comment_data.")
+        logger.exception("Неожиданная ошибка в save_comment_data_to_json.")
 
 
 def format_comments(item):
     comments = []
 
     if config.save_comments_data_to_json:
-        save_comment_data(item, logger)
+        save_comment_data(item)
 
     top_comment_data = item['snippet']['topLevelComment']
 
@@ -378,7 +402,7 @@ def main():
 
                     if config.save_comments_data_to_json:
                         for comment_data in comments_data:
-                            save_comment_data(comment_data, logger)
+                            save_comment_data(comment_data)
 
                     comments = format_comments(comment_data)
                     new_comments = save_comments_to_db(config.database_path, comments, channel_name)
