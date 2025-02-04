@@ -295,7 +295,7 @@ def comments_have_changed(past_data, current_data):
     return past_comments != current_comments
 
 
-def save_comment_data(comment_data):
+def save_comment_data_to_json(comment_data):
     """
     Сохраняет данные комментария в JSON-файл.
 
@@ -387,7 +387,7 @@ def main():
 
                     if config.save_comments_data_to_json:
                         for comment_data in comments_data:
-                            save_comment_data(comment_data)
+                            save_comment_data_to_json(comment_data)
 
                     new_comments = save_comments_to_db(config.database_path, comments_data, channel_name)
 
