@@ -33,64 +33,78 @@ def escape_markdown(text):
     return ''.join(f'\\{char}' if char in reserved_chars else char for char in text)
 
 
-def send_comment_to_telegram(new_comment, channel_name):
+def format_comment_for_telegram(new_comment, channel_name):
     """
-    Отправляет один комментарий в Telegram.
+    Форматирует текст комментария для отправки в Telegram.
 
     Args:
         new_comment (dict): Данные комментария.
         channel_name (str): Имя канала.
+
+    Returns:
+        str: Отформатированное сообщение.
+    """
+    video_id     = new_comment['snippet']['videoId']
+    author       = new_comment['snippet']['authorDisplayName']
+    text         = new_comment['snippet']['textDisplay']
+    publish_date = new_comment['snippet']['publishedAt']
+    updated_date = new_comment['snippet']['updatedAt']
+    reply_to     = new_comment['snippet'].get('parentId', None)
+
+    formatted_date = format_created_at_from_iso(
+        created_at_iso=publish_date,
+        date_format='%Y-%m-%d %H:%M:%S',
+        logger=logger
+    )
+
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+
+    is_updated = updated_date and updated_date != publish_date
+    quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
+
+    if is_updated:
+        quoted_text += "\n\n_\\(Комментарий изменён\\)_"
+
+    try:
+        conn = sqlite3.connect(config.database_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT text
+            FROM comments
+            WHERE comment_id = ?
+        ''', (reply_to,))
+
+        reply_text_row = cursor.fetchone()
+        conn.close()
+
+        reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
+        reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
+
+        reply_note =  f"\n\nОтвет на:\n{reply_quoted_text}"
+    except Exception as err:
+        logger.error("Ошибка при получении текста родительского комментария: %s", err)
+        reply_note =  "\n\nОтвет на: _Ошибка при загрузке комментария_"
+
+    return (
+        f"{channel_name_with_url}\n\n"
+        f"*Автор:* {escape_markdown(author)}\n\n"
+        f"{quoted_text}\n\n"
+        f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
+    )
+
+
+def send_comment_to_telegram(new_comment, channel_name):
+    """
+    Отправляет комментарий в Telegram.
+
+    Args:
+        new_comment (dict): Данные комментария.
+        channel_name (str): Название канала.
     """
     try:
-        video_id     = new_comment['snippet']['videoId']
-        author       = new_comment['snippet']['authorDisplayName']
-        text         = new_comment['snippet']['textDisplay']
-        publish_date = new_comment['snippet']['publishedAt']
-        updated_date = new_comment['snippet']['updatedAt']
-        reply_to     = new_comment['snippet'].get('parentId', None)
-
-        formatted_date = format_created_at_from_iso(
-            created_at_iso=publish_date,
-            date_format='%Y-%m-%d %H:%M:%S',
-            logger=logger
-        )
-
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
-
-        is_updated = updated_date and updated_date != publish_date
-        quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
-
-        if is_updated:
-            quoted_text += "\n\n_\\(Комментарий изменён\\)_"
-
-        try:
-            conn = sqlite3.connect(config.database_path)
-            cursor = conn.cursor()
-
-            cursor.execute('''
-                SELECT text
-                FROM comments
-                WHERE comment_id = ?
-            ''', (reply_to,))
-
-            reply_text_row = cursor.fetchone()
-            conn.close()
-
-            reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
-            reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
-            reply_note = f"\n\nОтвет на:\n{reply_quoted_text}"
-        except Exception as err:
-            logger.error("Ошибка при получении текста родительского комментария: %s", err)
-            reply_note = "\n\nОтвет на: _Ошибка при загрузке комментария_"
-
-        telegram_message = (
-            f"{channel_name_with_url}\n\n"
-            f"*Автор:* {escape_markdown(author)}\n\n"
-            f"{quoted_text}\n\n"
-            f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
-        )
-
+        telegram_message = format_comment_for_telegram(new_comment, channel_name)
         need_mention_user = config.user_id is not None
 
         try:
