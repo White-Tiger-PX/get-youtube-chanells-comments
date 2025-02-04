@@ -338,6 +338,37 @@ def save_comment_data_to_json(comment_data):
         logger.exception("Неожиданная ошибка в save_comment_data_to_json.")
 
 
+def extract_comments_with_replies(comments_data):
+    """
+    Извлекает комментарии и их ответы из предоставленных данных.
+
+    Функция проходит по списку комментариев, извлекает верхнеуровневые комментарии и, если имеются,
+    добавляет ответы к каждому из них в результирующий список.
+
+    Args:
+        comments_data (list): Список словарей с данными комментариев, полученными из API или другого источника.
+
+    Returns:
+        list: Список словарей, каждый из которых представляет либо топовый комментарий, либо ответ.
+    """
+    comments = []
+
+    for comment_data in comments_data:
+        try:
+            top_comment_data = comment_data['snippet']['topLevelComment']
+            comments.append(top_comment_data)
+
+            if 'replies' in comment_data:
+                for reply in comment_data['replies']['comments']:
+                    comments.append(reply)
+        except KeyError as err:
+            logger.error("Отсутствует ключ %s в комментарии: %s", err, comment_data)
+        except Exception as err:
+            logger.error("Ошибка обработки комментария %s: %s", comment_data.get('id', 'неизвестный'), err)
+
+    return comments
+
+
 def main():
     """
     Главная функция для запуска процесса получения комментариев с каналов.
@@ -389,7 +420,8 @@ def main():
                         for comment_data in comments_data:
                             save_comment_data_to_json(comment_data)
 
-                    new_comments = save_comments_to_db(config.database_path, comments_data, channel_name)
+                    comments_to_db = extract_comments_with_replies(comments_data)
+                    new_comments = save_comments_to_db(config.database_path, comments_to_db, channel_name)
 
                     if config.send_notification_on_telegram:
                         for new_comment in new_comments:
