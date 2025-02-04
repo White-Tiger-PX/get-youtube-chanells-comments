@@ -229,6 +229,13 @@ def save_comments_to_db(database_path, comments, channel_name):
     return new_comments
 
 
+def comments_have_changed(past_data, current_data):
+    past_comments = past_data.get('replies', {}).get('comments')
+    current_comments = current_data.get('replies', {}).get('comments')
+
+    return past_comments != current_comments
+
+
 def save_comment_data(comment_data, logger):
     """
     Сохраняет комментарий в JSON-файл.
@@ -268,10 +275,7 @@ def save_comment_data(comment_data, logger):
             logger=logger
         )
 
-        past_comments = past_json_data.get('replies', {}).get('comments')
-        current_comments = comment_data.get('replies', {}).get('comments')
-
-        if past_json_data and past_comments == current_comments:
+        if past_json_data and not comments_have_changed(past_json_data, comment_data):
             return
 
         save_json(
