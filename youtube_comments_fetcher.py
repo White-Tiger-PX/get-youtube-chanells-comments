@@ -128,6 +128,27 @@ def send_new_comments_to_telegram(new_comments, channel_name):
             logger.error("Ошибка обработки комментария: %s", err)
 
 
+def comment_exists(cursor, comment_id, updated_date):
+    """
+    Проверяет, существует ли комментарий в базе данных.
+
+    Args:
+        cursor (sqlite3.Cursor): Курсор базы данных.
+        comment_id (str): Идентификатор комментария.
+        updated_date (str): Дата обновления комментария.
+
+    Returns:
+        bool: True, если комментарий существует, иначе False.
+    """
+    cursor.execute('''
+        SELECT 1
+        FROM comments
+        WHERE comment_id = ? AND updated_date = ?
+    ''', (comment_id, updated_date))
+
+    return cursor.fetchone() is not None
+
+
 def save_comments_to_db(database_path, comments, channel_name):
     """
     Сохраняет новые комментарии в базу данных.
@@ -161,14 +182,7 @@ def save_comments_to_db(database_path, comments, channel_name):
                     updated_date = comment['updated_date']
                     reply_to = comment['reply_to']
 
-                    # Проверяем, есть ли уже такой комментарий с такой датой обновления
-                    cursor.execute('''
-                        SELECT 1
-                        FROM comments
-                        WHERE comment_id = ? AND updated_date = ?
-                    ''', (comment_id, updated_date))
-
-                    if cursor.fetchone():  # Если комментарий уже есть, пропускаем
+                    if comment_exists(cursor=cursor, comment_id=comment_id, updated_date=updated_date):
                         continue
 
                     if reply_to:
