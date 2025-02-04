@@ -172,19 +172,55 @@ def comment_exists(cursor, comment_id, updated_date):
     return cursor.fetchone() is not None
 
 
-def save_comments_to_db(database_path, comments, channel_name):
+def insert_comment(cursor, comment_data, channel_name):
     """
-    Сохраняет новые комментарии в базу данных.
+    Вставляет новый комментарий в базу данных.
+
+    Args:
+        cursor (sqlite3.Cursor): Курсор базы данных.
+        comment_data (dict): Данные комментария.
+        channel_name (str): Имя канала.
+    """
+    cursor.execute('''
+        INSERT INTO comments (
+            channel_name,
+            youtube_video_id,
+            channel_id,
+            comment_id,
+            author,
+            author_channel_id,
+            text,
+            publish_date,
+            updated_date,
+            reply_to
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        channel_name,
+        comment_data['snippet']['videoId'],
+        comment_data['snippet']['channelId'],
+        comment_data['id'],
+        comment_data['snippet']['authorDisplayName'],
+        comment_data['snippet']['authorChannelId']['value'],
+        comment_data['snippet']['textDisplay'],
+        comment_data['snippet']['publishedAt'],
+        comment_data['snippet']['updatedAt'],
+        comment_data['snippet'].get('parentId', None)
+    ))
+
+
+def save_comments_to_db(database_path, items, channel_name):
+    """
+    Сохраняет новые комментарии и ответы в базу данных.
 
     Args:
         database_path (str): Путь к базе данных.
-        comments (list): Список комментариев.
+        items (list): Список комментариев (топовых и ответов).
         channel_name (str): Имя канала.
 
     Returns:
-        list: Список новых комментариев, успешно сохранённых в базу данных.
+        list: Список новых комментариев и ответов, успешно сохранённых в базу данных.
     """
-    if not comments:
+    if not items:
         return []
 
     new_comments = []
@@ -193,59 +229,22 @@ def save_comments_to_db(database_path, comments, channel_name):
         with sqlite3.connect(database_path) as conn:
             cursor = conn.cursor()
 
-            for comment in comments:
-                try:
-                    channel_name       = channel_name
-                    video_id           = comment['snippet']['videoId']
-                    channel_id         = comment['snippet']['channelId']
-                    comment_id         = comment['id']
-                    author             = comment['snippet']['authorDisplayName']
-                    author_channel_id  = comment['snippet']['authorChannelId']['value']
-                    text               = comment['snippet']['textDisplay']
-                    publish_date       = comment['snippet']['publishedAt']
-                    updated_date       = comment['snippet']['updatedAt']
-                    reply_to           = comment['snippet'].get('parentId', None)
+            for comment_data in items:
+                if not comment_data:
+                    continue
 
+                updated_date = comment_data['snippet']['updatedAt']
+                comment_id   = comment_data['id']
+                author       = comment_data['snippet']['authorDisplayName']
+                text         = comment_data['snippet']['textDisplay']
 
-                    if comment_exists(cursor=cursor, comment_id=comment_id, updated_date=updated_date):
-                        continue
+                if comment_exists(cursor=cursor, comment_id=comment_id, updated_date=updated_date):
+                    continue
 
-                    if reply_to:
-                        logger.info("Новая запись с ответом на комментарий от %s: %s", author, text)
-                    else:
-                        logger.info("Новая запись с комментарием от %s: %s", author, text)
+                insert_comment(cursor, comment_data, channel_name)
 
-                    cursor.execute('''
-                        INSERT INTO comments (
-                            youtube_video_id,
-                            channel_name,
-                            channel_id,
-                            comment_id,
-                            author,
-                            author_channel_id,
-                            text,
-                            publish_date,
-                            updated_date,
-                            reply_to
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        video_id,
-                        channel_name,
-                        channel_id,
-                        comment_id,
-                        author,
-                        author_channel_id,
-                        text,
-                        publish_date,
-                        updated_date,
-                        reply_to
-                    ))
-
-                    new_comments.append(comment)
-                except KeyError as key_err:
-                    logger.error("Ошибка: отсутствует ключ в данных комментария: %s", key_err)
-                except Exception as err:
-                    logger.error("Ошибка обработки комментария %s: %s", comment_id, err)
+                new_comments.append(comment_data)
+                logger.info("Новая запись с комментарием от %s: %s", author, text)
     except sqlite3.Error as err:
         logger.error("Ошибка базы данных: %s", err)
     except Exception as err:
@@ -314,9 +313,9 @@ def save_comment_data(comment_data):
     """
     try:
         top_level_comment_data = comment_data['snippet']['topLevelComment']
-        channel_id = comment_data['snippet']['channelId']
-        video_id = comment_data['snippet']['videoId']
-        comment_id = comment_data['id']
+        channel_id             = comment_data['snippet']['channelId']
+        video_id               = comment_data['snippet']['videoId']
+        comment_id             = comment_data['id']
 
         updated_date = format_created_at_from_iso(
             created_at_iso=top_level_comment_data['snippet']['updatedAt'],
