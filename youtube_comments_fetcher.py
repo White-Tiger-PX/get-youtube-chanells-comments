@@ -195,15 +195,17 @@ def save_comments_to_db(database_path, comments, channel_name):
 
             for comment in comments:
                 try:
-                    video_id = comment['youtube_video_id']
-                    channel_id = comment['channel_id']
-                    comment_id = comment['comment_id']
-                    author = comment['author']
-                    author_channel_id = comment['author_channel_id']
-                    text = comment['text']
-                    publish_date = comment['publish_date']
-                    updated_date = comment['updated_date']
-                    reply_to = comment['reply_to']
+                    channel_name       = channel_name
+                    video_id           = comment['snippet']['videoId']
+                    channel_id         = comment['snippet']['channelId']
+                    comment_id         = comment['id']
+                    author             = comment['snippet']['authorDisplayName']
+                    author_channel_id  = comment['snippet']['authorChannelId']['value']
+                    text               = comment['snippet']['textDisplay']
+                    publish_date       = comment['snippet']['publishedAt']
+                    updated_date       = comment['snippet']['updatedAt']
+                    reply_to           = comment['snippet'].get('parentId', None)
+
 
                     if comment_exists(cursor=cursor, comment_id=comment_id, updated_date=updated_date):
                         continue
@@ -337,45 +339,6 @@ def save_comment_data(comment_data):
         logger.exception("Неожиданная ошибка в save_comment_data_to_json.")
 
 
-def format_comments(item):
-    comments = []
-
-    if config.save_comments_data_to_json:
-        save_comment_data(item)
-
-    top_comment_data = item['snippet']['topLevelComment']
-
-    top_comment_data_to_db = {
-        "youtube_video_id": item['snippet']['videoId'],
-        "channel_id": item['snippet']['channelId'],
-        "comment_id": item['id'],
-        "author": top_comment_data['snippet']['authorDisplayName'],
-        "author_channel_id": top_comment_data['snippet']['authorChannelId']['value'],
-        "text": top_comment_data['snippet']['textDisplay'],
-        "publish_date": top_comment_data['snippet']['publishedAt'],
-        "updated_date": top_comment_data['snippet']['updatedAt'],
-        "reply_to": None
-    }
-
-    comments.append(top_comment_data_to_db)
-
-    if 'replies' in item:
-        for reply in item['replies']['comments']:
-            comments.append({
-                "youtube_video_id": reply['snippet']['videoId'],
-                "channel_id": reply['snippet']['channelId'],
-                "comment_id": reply['id'],
-                "author": reply['snippet']['authorDisplayName'],
-                "author_channel_id": reply['snippet']['authorChannelId']['value'],
-                "text": reply['snippet']['textDisplay'],
-                "publish_date": reply['snippet']['publishedAt'],
-                "updated_date": reply['snippet']['updatedAt'],
-                "reply_to": reply['snippet'].get('parentId')
-            })
-
-    return comments
-
-
 def main():
     """
     Главная функция для запуска процесса получения комментариев с каналов.
@@ -427,8 +390,7 @@ def main():
                         for comment_data in comments_data:
                             save_comment_data(comment_data)
 
-                    comments = format_comments(comment_data)
-                    new_comments = save_comments_to_db(config.database_path, comments, channel_name)
+                    new_comments = save_comments_to_db(config.database_path, comments_data, channel_name)
 
                     if config.send_notification_on_telegram:
                         for new_comment in new_comments:
