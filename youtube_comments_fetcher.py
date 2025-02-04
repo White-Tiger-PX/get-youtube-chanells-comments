@@ -33,13 +33,46 @@ def escape_markdown(text):
     return ''.join(f'\\{char}' if char in reserved_chars else char for char in text)
 
 
+def get_parent_comment_text(reply_to):
+    """
+    Получает текст родительского комментария.
+
+    Args:
+        reply_to (str): ID родительского комментария.
+
+    Returns:
+        str: Текст родительского комментария, отформатированный для Telegram.
+    """
+    try:
+        conn = sqlite3.connect(config.database_path)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT text
+            FROM comments
+            WHERE comment_id = ?
+        ''', (reply_to,))
+
+        reply_text_row = cursor.fetchone()
+        conn.close()
+
+        reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
+        reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
+
+        return f"\n\nОтвет на:\n{reply_quoted_text}"
+    except Exception as err:
+        logger.error("Ошибка при получении текста родительского комментария: %s", err)
+
+        return "\n\nОтвет на: _Ошибка при загрузке комментария_"
+
+
 def format_comment_for_telegram(new_comment, channel_name):
     """
     Форматирует текст комментария для отправки в Telegram.
 
     Args:
         new_comment (dict): Данные комментария.
-        channel_name (str): Имя канала.
+        channel_name (str): Название канала.
 
     Returns:
         str: Отформатированное сообщение.
@@ -66,26 +99,7 @@ def format_comment_for_telegram(new_comment, channel_name):
     if is_updated:
         quoted_text += "\n\n_\\(Комментарий изменён\\)_"
 
-    try:
-        conn = sqlite3.connect(config.database_path)
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            SELECT text
-            FROM comments
-            WHERE comment_id = ?
-        ''', (reply_to,))
-
-        reply_text_row = cursor.fetchone()
-        conn.close()
-
-        reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
-        reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
-
-        reply_note =  f"\n\nОтвет на:\n{reply_quoted_text}"
-    except Exception as err:
-        logger.error("Ошибка при получении текста родительского комментария: %s", err)
-        reply_note =  "\n\nОтвет на: _Ошибка при загрузке комментария_"
+    reply_note = get_parent_comment_text(reply_to) if reply_to else ""
 
     return (
         f"{channel_name_with_url}\n\n"
