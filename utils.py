@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import config
 
 
-def get_created_at_local(created_at, logger):
+def convert_utc_to_local(created_at, logger):
     """
     Преобразует дату из UTC в локальное время.
 
@@ -23,6 +23,7 @@ def get_created_at_local(created_at, logger):
         return created_at_local
     except ValueError as err:
         logger.error("Ошибка преобразования даты: %s", err)
+
         raise ValueError("Ошибка в формате даты.") from err
 
 
@@ -39,7 +40,7 @@ def format_created_at_from_iso(created_at_iso, date_format, logger):
         str: Отформатированная дата.
     """
     try:
-        created_at_local = get_created_at_local(created_at_iso, logger)
+        created_at_local = convert_utc_to_local(created_at_iso, logger)
 
         return created_at_local.strftime(date_format)
     except ValueError as err:
