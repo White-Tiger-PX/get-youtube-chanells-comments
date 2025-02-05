@@ -27,27 +27,6 @@ def convert_utc_to_local(created_at, logger):
         raise ValueError("Ошибка в формате даты.") from err
 
 
-def format_created_at_from_iso(created_at_iso, date_format, logger):
-    """
-    Преобразует дату из ISO-формата в локальное время и форматирует её.
-
-    Args:
-        created_at_iso (str): Дата в ISO-формате.
-        date_format (str): Желаемый формат даты.
-        logger (logging.Logger): Логгер.
-
-    Returns:
-        str: Отформатированная дата.
-    """
-    try:
-        created_at_local = convert_utc_to_local(created_at_iso, logger)
-
-        return created_at_local.strftime(date_format)
-    except ValueError as err:
-        logger.error("Ошибка обработки даты: %s", err)
-        raise ValueError(f"Ошибка обработки даты: {err}") from err
-
-
 def load_json(file_path, default_type, logger):
     """
     Загружает JSON-файл.

@@ -12,7 +12,7 @@ from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
 from telegram_notification import send_message_to_chat, send_message_to_group
 from utils_youtube import get_channel_info, get_youtube_service
-from utils import load_json, save_json, format_created_at_from_iso
+from utils import load_json, save_json, convert_utc_to_local
 
 
 def escape_markdown(text):
@@ -84,11 +84,8 @@ def format_comment_for_telegram(new_comment, channel_name):
     updated_date = new_comment['snippet']['updatedAt']
     reply_to     = new_comment['snippet'].get('parentId', None)
 
-    formatted_date = format_created_at_from_iso(
-        created_at_iso=publish_date,
-        date_format='%Y-%m-%d %H:%M:%S',
-        logger=logger
-    )
+    publish_date_local = convert_utc_to_local(publish_date, logger)
+    formatted_publish_date = publish_date_local.strftime('%Y-%m-%d %H:%M:%S')
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
@@ -105,7 +102,7 @@ def format_comment_for_telegram(new_comment, channel_name):
         f"{channel_name_with_url}\n\n"
         f"*Автор:* {escape_markdown(author)}\n\n"
         f"{quoted_text}\n\n"
-        f"*Дата:* {escape_markdown(formatted_date)}{reply_note}"
+        f"*Дата:* {escape_markdown(formatted_publish_date)}{reply_note}"
     )
 
 
@@ -313,22 +310,20 @@ def save_comment_data_to_json(comment_data):
     """
     try:
         top_level_comment_data = comment_data['snippet']['topLevelComment']
+        updated_date           = top_level_comment_data['snippet']['updatedAt']
         channel_id             = comment_data['snippet']['channelId']
         video_id               = comment_data['snippet']['videoId']
         comment_id             = comment_data['id']
 
-        updated_date = format_created_at_from_iso(
-            created_at_iso=top_level_comment_data['snippet']['updatedAt'],
-            date_format="%Y-%m-%d %H-%M-%S",
-            logger=logger
-        )
+        updated_date_local = convert_utc_to_local(updated_date, logger)
+        formatted_updated_date = updated_date_local.strftime('%Y-%m-%d %H-%M-%S')
 
-        save_path = generate_save_path(channel_id, video_id, comment_id, updated_date)
+        save_path = generate_save_path(channel_id, video_id, comment_id, formatted_updated_date)
         past_json_data = load_json(file_path=save_path, default_type={}, logger=logger)
 
-        if past_json_data and not comments_have_changed(past_json_data, comment_data):
+        if past_json_data and not comments_have_changed(past_data=past_json_data, current_data=comment_data):
             return
-
+        print(save_path, comment_data)
         save_json(file_path=save_path, data=comment_data, logger=logger)
     except KeyError as err:
         logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
@@ -414,15 +409,27 @@ def main():
 
                     logger.info("Обновление комментариев видео %s", video_label)
 
-                    comments_data = get_video_comments(youtube_service, video_id, logger=logger)
+                    comments_data = get_video_comments(
+                        youtube_service=youtube_service,
+                        video_id=video_id,
+                        logger=logger
+                    )
 
+                    # Сначала сохраняем комментарии в json
+                    # проверяя, что нет изменения относительно локальных файлов
                     if config.save_comments_data_to_json:
                         for comment_data in comments_data:
                             save_comment_data_to_json(comment_data)
 
-                    comments_to_db = extract_comments_with_replies(comments_data)
-                    new_comments = save_comments_to_db(config.database_path, comments_to_db, channel_name)
+                    # Добавляем новые записи в базу данных
+                    comments_to_db = extract_comments_with_replies(comments_data=comments_data)
+                    new_comments = save_comments_to_db(
+                        database_path=config.database_path,
+                        items=comments_to_db,
+                        channel_name=channel_name
+                    )
 
+                    # Отправляем комментарии после их сохранения
                     if config.send_notification_on_telegram:
                         for new_comment in new_comments:
                             send_comment_to_telegram(new_comment, channel_name)
