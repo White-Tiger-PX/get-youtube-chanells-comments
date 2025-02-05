@@ -369,6 +369,84 @@ def extract_comments_with_replies(comments_data):
     return comments
 
 
+def process_video(video_id, video_index, total_videos, youtube_service, channel_name):
+    """
+    Обрабатывает комментарии для одного видео.
+
+    Args:
+        video_id (str): Идентификатор видео.
+        video_index (int): Индекс текущего видео в списке.
+        total_videos (int): Общее количество видео.
+        youtube_service: Сервис YouTube API.
+        channel_name (str): Название канала.
+    """
+    video_label = f"[ {channel_name} | {video_id} | {video_index+1}/{total_videos} ]"
+    logger.info("Обновление комментариев видео %s", video_label)
+
+    comments_data = get_video_comments(youtube_service=youtube_service, video_id=video_id, logger=logger)
+
+    # Сначала сохраняем комментарии в JSON, если включено в настройках
+    if config.save_comments_data_to_json:
+        for comment_data in comments_data:
+            save_comment_data_to_json(comment_data=comment_data)
+
+    # Извлекаем комментарии и сохраняем новые записи в базу данных
+    comments_to_db = extract_comments_with_replies(comments_data=comments_data)
+    new_comments = save_comments_to_db(database_path=config.database_path, items=comments_to_db, channel_name=channel_name)
+
+    # Отправляем уведомления в Telegram для новых комментариев
+    if config.send_notification_on_telegram:
+        for new_comment in new_comments:
+            send_comment_to_telegram(new_comment=new_comment, channel_name=channel_name)
+
+
+def process_channel(channel_data):
+    """
+    Обрабатывает обновление комментариев для одного канала.
+
+    Args:
+        channel_data (dict): Данные канала (например, пути к токену и client_secret).
+    """
+    try:
+        token_path = channel_data["token_channel_path"]
+        client_secret_path = channel_data["client_secret_path"]
+
+        credentials = get_channel_credentials(
+            client_secret_path=client_secret_path,
+            token_path=token_path,
+            timeout=300,
+            main_logger=logger
+        )
+
+        youtube_service = get_youtube_service(credentials=credentials)
+        channel_info = get_channel_info(youtube_service=youtube_service)
+        channel_name = channel_info['snippet']['title']
+        upload_playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
+
+        logger.info("Началось обновление комментариев с канала [ %s ]", channel_name)
+
+        video_ids = get_all_video_ids_from_channel(
+            youtube_service=youtube_service,
+            upload_playlist_id=upload_playlist_id,
+            channel_name=channel_name,
+            logger=logger
+        )
+
+        total_videos = len(video_ids)
+
+        for index, video_id in enumerate(video_ids):
+            try:
+                process_video(video_id, index, total_videos, youtube_service, channel_name)
+            except Exception as err:
+                video_label = f"[ {channel_name} | {video_id} | {index+1}/{total_videos} ]"
+                logger.error("Ошибка при обновлении комментариев для %s: %s", video_label, err)
+
+        logger.info("Завершено обновление комментариев с канала [ %s ]", channel_name)
+    except Exception as err:
+        token_path = channel_data.get("token_channel_path", "неизвестный токен")
+        logger.error("Ошибка обработки канала с токеном %s: %s", token_path, err)
+
+
 def main():
     """
     Главная функция для запуска процесса получения комментариев с каналов.
@@ -381,69 +459,9 @@ def main():
     )
 
     for channel_data in config.channels:
-        try:
-            token_path = channel_data["token_channel_path"]
-            client_secret_path = channel_data["client_secret_path"]
+        process_channel(channel_data)
 
-            credentials = get_channel_credentials(
-                client_secret_path=client_secret_path,
-                token_path=token_path,
-                timeout=300,
-                main_logger=logger
-            )
-
-            youtube_service = get_youtube_service(credentials=credentials)
-            channel_info = get_channel_info(youtube_service=youtube_service)
-            channel_name = channel_info['snippet']['title']
-            upload_playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
-
-            logger.info("Началось обновление комментариев с канала [ %s ]", channel_name)
-
-            video_ids = get_all_video_ids_from_channel(
-                youtube_service=youtube_service,
-                upload_playlist_id=upload_playlist_id,
-                channel_name=channel_name,
-                logger=logger
-            )
-
-            count_videos = len(video_ids)
-
-            for i, video_id in enumerate(video_ids):
-                try:
-                    video_label = f"[ {channel_name} | {video_id} | {i+1}/{count_videos} ]"
-
-                    logger.info("Обновление комментариев видео %s", video_label)
-
-                    comments_data = get_video_comments(
-                        youtube_service=youtube_service,
-                        video_id=video_id,
-                        logger=logger
-                    )
-
-                    # Сначала сохраняем комментарии в json
-                    # проверяя, что нет изменения относительно локальных файлов
-                    if config.save_comments_data_to_json:
-                        for comment_data in comments_data:
-                            save_comment_data_to_json(comment_data=comment_data)
-
-                    # Добавляем новые записи в базу данных
-                    comments_to_db = extract_comments_with_replies(comments_data=comments_data)
-                    new_comments = save_comments_to_db(
-                        database_path=config.database_path,
-                        items=comments_to_db,
-                        channel_name=channel_name
-                    )
-
-                    # Отправляем комментарии после их сохранения
-                    if config.send_notification_on_telegram:
-                        for new_comment in new_comments:
-                            send_comment_to_telegram(new_comment=new_comment, channel_name=channel_name)
-                except Exception as err:
-                    logger.error("Ошибка при обновлении комментариев для %s: %s", video_label, err)
-
-            logger.info("Завершено обновление комментариев с канала [ %s ]", channel_name)
-        except Exception as err:
-            logger.error("Ошибка обработки канала с токеном %s: %s", token_path, err)
+    logger.info("Все каналы обработаны!")
 
 
 if __name__ == "__main__":
