@@ -34,7 +34,7 @@ def init_database(database_path, main_logger):
                 channel_name TEXT NOT NULL,
                 channel_id TEXT NOT NULL,
 
-                comment_id TEXT,
+                comment_id TEXT NOT NULL,
                 author TEXT NOT NULL,
                 author_channel_id TEXT NOT NULL,
 
