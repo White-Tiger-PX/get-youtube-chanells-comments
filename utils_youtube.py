@@ -1,19 +1,16 @@
-from google.auth.transport.requests import AuthorizedSession
 from googleapiclient.discovery import build
 
 
-def get_youtube_service(credentials, timeout=15):
+def get_youtube_service(credentials):
     """
     Создает сервисный объект YouTube API, используя переданные учетные данные.
 
     Args:
         credentials (google.auth.credentials.Credentials): Учётные данные пользователя.
-        timeout (int, optional): Тайм-аут HTTP-сессии.
 
     Returns:
         googleapiclient.discovery.Resource: Сервис YouTube API для выполнения запросов.
     """
-    http = AuthorizedSession(credentials, refresh_timeout=timeout)  # HTTP-сессия с авторизацией
     youtube_service = build('youtube', 'v3', credentials=credentials, cache_discovery=False)
 
     return youtube_service
