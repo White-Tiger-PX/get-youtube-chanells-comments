@@ -56,7 +56,7 @@ def get_parent_comment_text(reply_to):
         reply_text_row = cursor.fetchone()
         conn.close()
 
-        reply_text = escape_markdown(reply_text_row[0] if reply_text_row else "_Комментарий не найден_")
+        reply_text = escape_markdown(text=reply_text_row[0]) if reply_text_row else "_Комментарий не найден_"
         reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
 
         return f"\n\nОтвет на:\n{reply_quoted_text}"
@@ -88,10 +88,10 @@ def format_comment_for_telegram(new_comment, channel_name):
     formatted_publish_date = publish_date_local.strftime('%Y-%m-%d %H:%M:%S')
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
-    channel_name_with_url = f"[{escape_markdown(channel_name)}]({video_url})"
+    channel_name_with_url = f"[{escape_markdown(text=channel_name)}]({video_url})"
 
     is_updated = updated_date and updated_date != publish_date
-    quoted_text = "\n".join(f"> {escape_markdown(line)}" for line in text.splitlines())
+    quoted_text = "\n".join(f"> {escape_markdown(text=line)}" for line in text.splitlines())
 
     if is_updated:
         quoted_text += "\n\n_\\(Комментарий изменён\\)_"
@@ -100,9 +100,9 @@ def format_comment_for_telegram(new_comment, channel_name):
 
     return (
         f"{channel_name_with_url}\n\n"
-        f"*Автор:* {escape_markdown(author)}\n\n"
+        f"*Автор:* {escape_markdown(text=author)}\n\n"
         f"{quoted_text}\n\n"
-        f"*Дата:* {escape_markdown(formatted_publish_date)}{reply_note}"
+        f"*Дата:* {escape_markdown(text=formatted_publish_date)}{reply_note}"
     )
 
 
@@ -238,7 +238,7 @@ def save_comments_to_db(database_path, items, channel_name):
                 if comment_exists(cursor=cursor, comment_id=comment_id, updated_date=updated_date):
                     continue
 
-                insert_comment(cursor, comment_data, channel_name)
+                insert_comment(cursor=cursor, comment_data=comment_data, channel_name=channel_name)
 
                 new_comments.append(comment_data)
                 logger.info("Новая запись с комментарием от %s: %s", author, text)
@@ -315,15 +315,20 @@ def save_comment_data_to_json(comment_data):
         video_id               = comment_data['snippet']['videoId']
         comment_id             = comment_data['id']
 
-        updated_date_local = convert_utc_to_local(updated_date, logger)
+        updated_date_local = convert_utc_to_local(created_at=updated_date, logger=logger)
         formatted_updated_date = updated_date_local.strftime('%Y-%m-%d %H-%M-%S')
 
-        save_path = generate_save_path(channel_id, video_id, comment_id, formatted_updated_date)
+        save_path = generate_save_path(
+            channel_id=channel_id,
+            video_id=video_id,
+            comment_id=comment_id,
+            updated_date=formatted_updated_date
+        )
         past_json_data = load_json(file_path=save_path, default_type={}, logger=logger)
 
         if past_json_data and not comments_have_changed(past_data=past_json_data, current_data=comment_data):
             return
-        print(save_path, comment_data)
+
         save_json(file_path=save_path, data=comment_data, logger=logger)
     except KeyError as err:
         logger.error("Отсутствует ожидаемый ключ в comment_data: %s", err)
@@ -387,8 +392,8 @@ def main():
                 main_logger=logger
             )
 
-            youtube_service = get_youtube_service(credentials)
-            channel_info = get_channel_info(youtube_service)
+            youtube_service = get_youtube_service(credentials=credentials)
+            channel_info = get_channel_info(youtube_service=youtube_service)
             channel_name = channel_info['snippet']['title']
             upload_playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
 
@@ -419,7 +424,7 @@ def main():
                     # проверяя, что нет изменения относительно локальных файлов
                     if config.save_comments_data_to_json:
                         for comment_data in comments_data:
-                            save_comment_data_to_json(comment_data)
+                            save_comment_data_to_json(comment_data=comment_data)
 
                     # Добавляем новые записи в базу данных
                     comments_to_db = extract_comments_with_replies(comments_data=comments_data)
@@ -432,7 +437,7 @@ def main():
                     # Отправляем комментарии после их сохранения
                     if config.send_notification_on_telegram:
                         for new_comment in new_comments:
-                            send_comment_to_telegram(new_comment, channel_name)
+                            send_comment_to_telegram(new_comment=new_comment, channel_name=channel_name)
                 except Exception as err:
                     logger.error("Ошибка при обновлении комментариев для %s: %s", video_label, err)
 
