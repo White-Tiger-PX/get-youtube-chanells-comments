@@ -5,22 +5,22 @@ from datetime import datetime, timedelta
 import config
 
 
-def convert_utc_to_local(created_at, logger):
+def convert_utc_to_local(utc_time, logger):
     """
     Преобразует дату из UTC в локальное время.
 
     Args:
-        created_at (str): Дата в формате UTC (например, "2024-02-01T12:00:00Z").
+        utc_time (str): Дата в формате UTC (например, "2024-02-01T12:00:00Z").
         logger (logging.Logger): Логгер.
 
     Returns:
         datetime: Дата в локальном времени.
     """
     try:
-        created_at = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
-        created_at_local = created_at + timedelta(hours=config.utc_offset_hours)
+        converted_time = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%SZ")
+        converted_time_at_local = converted_time + timedelta(hours=config.utc_offset_hours)
 
-        return created_at_local
+        return converted_time_at_local
     except ValueError as err:
         logger.error("Ошибка преобразования даты: %s", err)
 

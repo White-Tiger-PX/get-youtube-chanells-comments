@@ -84,7 +84,7 @@ def format_comment_for_telegram(new_comment, channel_name):
     updated_date = new_comment['snippet']['updatedAt']
     reply_to     = new_comment['snippet'].get('parentId', None)
 
-    publish_date_local = convert_utc_to_local(publish_date, logger)
+    publish_date_local = convert_utc_to_local(utc_time=publish_date, logger=logger)
     formatted_publish_date = publish_date_local.strftime('%Y-%m-%d %H:%M:%S')
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -315,7 +315,7 @@ def save_comment_data_to_json(comment_data):
         video_id               = comment_data['snippet']['videoId']
         comment_id             = comment_data['id']
 
-        updated_date_local = convert_utc_to_local(created_at=updated_date, logger=logger)
+        updated_date_local = convert_utc_to_local(utc_time=updated_date, logger=logger)
         formatted_updated_date = updated_date_local.strftime('%Y-%m-%d %H-%M-%S')
 
         save_path = generate_save_path(
