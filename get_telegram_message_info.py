@@ -1,4 +1,3 @@
-from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -9,7 +8,7 @@ from telegram.ext import (
 import config
 
 
-async def start(update: Update):
+async def start(update, context):
     """
     Обрабатывает команду /start или текстовое сообщение от пользователя или канала.
 
