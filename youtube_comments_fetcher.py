@@ -3,6 +3,8 @@ import time
 import asyncio
 import sqlite3
 
+from datetime import datetime, timedelta
+
 import config
 
 from set_logger import set_logger
@@ -12,7 +14,7 @@ from get_channel_credentials import get_channel_credentials
 from get_all_video_ids_from_channel import get_all_video_ids_from_channel
 from telegram_notification import send_message_to_chat, send_message_to_group
 from utils_youtube import get_channel_info, get_youtube_service
-from utils import load_json, save_json, convert_utc_to_local
+from utils_json import load_json, save_json
 
 
 def escape_markdown(text):
@@ -292,11 +294,33 @@ def comments_have_changed(past_data, current_data):
     return past_comments != current_comments
 
 
+def convert_utc_to_local(utc_time, logger):
+    """
+    Преобразует дату из UTC в локальное время.
+
+    Args:
+        utc_time (str): Дата в формате UTC (например, "2025-12-59T12:00:00Z").
+        logger (logging.Logger): Логгер.
+
+    Returns:
+        datetime: Дата в локальном времени.
+    """
+    try:
+        converted_time = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%SZ")
+        converted_time_at_local = converted_time + timedelta(hours=config.utc_offset_hours)
+
+        return converted_time_at_local
+    except ValueError as err:
+        logger.error("Ошибка преобразования даты: %s", err)
+
+        raise ValueError("Ошибка в формате даты.") from err
+
+
 def save_comment_data_to_json(comment_data):
     """
     Сохраняет данные комментария в JSON-файл.
 
-    Функция извлекает необходимую информацию из словаря комментария, формирует путь для сохранения файла,
+    Функция извлекает необходимую информацию из словаря с данными комментария, формирует путь для сохранения файла,
     загружает предыдущие данные (если они существуют) и сравнивает их с текущими данными. Если данные изменились,
     производится сохранение обновленных данных в JSON-файл.
 
@@ -400,17 +424,15 @@ def process_video(video_id, video_index, total_videos, youtube_service, channel_
             send_comment_to_telegram(new_comment=new_comment, channel_name=channel_name)
 
 
-def process_channel(channel_data):
+def process_channel(token_path, client_secret_path):
     """
-    Обрабатывает обновление комментариев для одного канала.
+    Обрабатывает обновление комментариев для канала.
 
     Args:
-        channel_data (dict): Данные канала (например, пути к токену и client_secret).
+        token_path (dict): Путь к token.
+        client_secret_path (dict): Путь к client_secret.
     """
     try:
-        token_path = channel_data["token_channel_path"]
-        client_secret_path = channel_data["client_secret_path"]
-
         credentials = get_channel_credentials(
             client_secret_path=client_secret_path,
             token_path=token_path,
@@ -443,7 +465,6 @@ def process_channel(channel_data):
 
         logger.info("Завершено обновление комментариев с канала [ %s ]", channel_name)
     except Exception as err:
-        token_path = channel_data.get("token_channel_path", "неизвестный токен")
         logger.error("Ошибка обработки канала с токеном %s: %s", token_path, err)
 
 
@@ -459,7 +480,10 @@ def main():
     )
 
     for channel_data in config.channels:
-        process_channel(channel_data)
+        token_path = channel_data["token_channel_path"]
+        client_secret_path = channel_data["client_secret_path"]
+
+        process_channel(token_path, client_secret_path)
 
     logger.info("Все каналы обработаны!")
 
