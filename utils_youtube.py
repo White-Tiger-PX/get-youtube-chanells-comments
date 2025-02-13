@@ -33,7 +33,7 @@ def get_channel_info(youtube_service):
     )
     response = request.execute()
 
-    if response['items']:
+    if response.get('items', None):
         return response['items'][0]
 
     return {}
