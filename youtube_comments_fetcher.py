@@ -350,10 +350,12 @@ def save_comment_data_to_json(comment_data):
             comment_id=comment_id,
             updated_date=formatted_updated_date
         )
-        past_json_data = load_json(file_path=save_path, default_type={}, logger=logger)
 
-        if past_json_data and not comments_have_changed(past_data=past_json_data, current_data=comment_data):
-            return
+        if os.path.exists(save_path):
+            past_json_data = load_json(file_path=save_path, default_type={}, logger=logger)
+
+            if past_json_data and not comments_have_changed(past_data=past_json_data, current_data=comment_data):
+                return
 
         save_json(file_path=save_path, data=comment_data, logger=logger)
     except KeyError as err:
