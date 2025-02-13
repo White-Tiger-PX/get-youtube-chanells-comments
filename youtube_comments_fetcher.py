@@ -46,17 +46,16 @@ def get_parent_comment_text(reply_to):
         str: Текст родительского комментария, отформатированный для Telegram.
     """
     try:
-        conn = sqlite3.connect(config.database_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(config.database_path) as conn:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT text
-            FROM comments
-            WHERE comment_id = ?
-        ''', (reply_to,))
+            cursor.execute('''
+                SELECT text
+                FROM comments
+                WHERE comment_id = ?
+            ''', (reply_to,))
 
-        reply_text_row = cursor.fetchone()
-        conn.close()
+            reply_text_row = cursor.fetchone()
 
         reply_text = escape_markdown(text=reply_text_row[0]) if reply_text_row else "_Комментарий не найден_"
         reply_quoted_text = "\n".join(f"> {line}" for line in reply_text.splitlines())
@@ -294,16 +293,19 @@ def comments_have_changed(past_data, current_data):
     return past_comments != current_comments
 
 
-def convert_utc_to_local(utc_time, logger):
+def convert_utc_to_local(utc_time: str, logger) -> datetime:
     """
-    Преобразует дату из UTC в локальное время.
+    Преобразует дату и время из UTC в локальное время.
 
     Args:
-        utc_time (str): Дата в формате UTC (например, "2025-12-59T12:00:00Z").
-        logger (logging.Logger): Логгер.
+        utc_time (str): Дата и время в формате UTC (например, "2025-12-31T12:00:00Z").
+        logger (logging.Logger): Объект логгера для записи ошибок.
 
     Returns:
-        datetime: Дата в локальном времени.
+        datetime: Дата и время в локальном часовом поясе.
+
+    Raises:
+        ValueError: Если входная строка имеет некорректный формат.
     """
     try:
         converted_time = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%SZ")
