@@ -44,7 +44,7 @@ def init_database(database_path: str, main_logger):
 
             conn.commit()
 
-           logger.info("Инициализация базы данных завершена.")
+            logger.info("Инициализация базы данных завершена.")
     except Exception as err:
         logger.error("Ошибка при инициализации базы данных: %s", err)
 

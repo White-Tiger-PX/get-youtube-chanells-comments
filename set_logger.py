@@ -1,10 +1,13 @@
+"""
+Модуль для создания логгера.
+"""
 import os
 import logging
 
 from datetime import datetime
 
 
-def set_logger(log_folder=None):
+def set_logger(log_folder: str = None) -> logging.Logger:
     """
     Создает и настраивает логгер для записи логов в файл и вывод в консоль.
 

@@ -299,7 +299,7 @@ def convert_utc_to_local(utc_time: str, logger) -> datetime:
 
     Args:
         utc_time (str): Дата и время в формате UTC (например, "2025-12-31T12:00:00Z").
-        logger (logging.Logger): Объект логгера для записи ошибок.
+        logger (logging.Logger): Логгер.
 
     Returns:
         datetime: Дата и время в локальном часовом поясе.
